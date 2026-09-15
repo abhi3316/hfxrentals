@@ -160,3 +160,35 @@ CREATE POLICY "Users can view messages they sent or received"
 CREATE POLICY "Authenticated users can send messages"
   ON public.messages FOR INSERT
   WITH CHECK (auth.uid() = sender_id);
+
+-- 6. Storage Bucket for Listing Photos
+-- Creates a public bucket 'listing-photos' for property photos
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('listing-photos', 'listing-photos', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Storage RLS policies for listing-photos
+CREATE POLICY "Public Access to Listing Photos"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'listing-photos');
+
+CREATE POLICY "Authenticated users can upload listing photos"
+  ON storage.objects FOR INSERT
+  WITH CHECK (
+    bucket_id = 'listing-photos'
+    AND auth.role() = 'authenticated'
+  );
+
+CREATE POLICY "Users can update their own listing photos"
+  ON storage.objects FOR UPDATE
+  USING (
+    bucket_id = 'listing-photos'
+    AND auth.uid() = owner
+  );
+
+CREATE POLICY "Users can delete their own listing photos"
+  ON storage.objects FOR DELETE
+  USING (
+    bucket_id = 'listing-photos'
+    AND auth.uid() = owner
+  );

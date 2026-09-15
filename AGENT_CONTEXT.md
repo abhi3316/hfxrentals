@@ -26,10 +26,15 @@
    * Database schema file `supabase-schema.sql` (profiles, listings, viewings, RLS policies).
 6. **Scam Shield & Trust Layer**:
    * Remote student in-person inspection bookings ($69), Land registry ownership audits ($39), and Halifax rental scam warnings.
-6. **Monetization Touchpoints**:
+7. **Monetization Touchpoints**:
    * Microtransactions: $9.99 Urgent Sublet & Featured boosts.
    * Affiliate partnerships: Embedded instant Tenant Insurance quotes (mandatory in most HRM leases).
    * Verification products: Fast-Pass™ ($19) and remote physical inspections ($69).
+8. **Client-Side Image Compression & Property Photo Storage**:
+   * Auto-compression in browser via HTML5 Canvas (`src/utils/imageOptimizer.ts`): downscales 12-15MB smartphone photos to ~150-250KB WebP prior to network transmission, slashing bandwidth and storage costs by 95%.
+   * Multi-photo uploader in `PostListingModal.tsx` (drag & drop, up to 8 photos, Cover Photo badge, individual remove, live compression stats).
+   * Dual-mode storage engine (`src/utils/storage.ts`): uploads to Supabase Storage `listing-photos` public bucket if available, with graceful local fallback so offline/demo modes never fail.
+   * Supabase Storage SQL schema and RLS policies included in `supabase-schema.sql`.
 
 ## Tech Stack & Architecture
 * **Frontend**: React 19 + TypeScript + Vite.
@@ -74,6 +79,9 @@ hfxrentals/
     │   ├── InsuranceWidget.tsx  # Tenant insurance affiliate revenue banner
     │   ├── ScamShieldBanner.tsx # Anti-fraud hub & remote inspection bookings
     │   └── FavoritesDrawer.tsx  # Slide-over saved listings manager
+    ├── utils/
+    │   ├── imageOptimizer.ts    # Client-side HTML5 Canvas auto-compression (15MB -> 180KB WebP)
+    │   └── storage.ts           # Dual-mode photo storage (Supabase 'listing-photos' bucket + fallback)
     └── styles/
         ├── index.css            # Maritime tokens, reset, typography, buttons
         ├── navbar.css           # Sticky glass header, active tabs
@@ -101,7 +109,7 @@ hfxrentals/
 | **In-App Tenant-Landlord Chat** | Supabase `messages` Table + WebSockets (with localStorage fallback) | **AWS AppSync (GraphQL Subscriptions)** or **API Gateway WebSocket + DynamoDB** | 🟡 **Medium (3-4 hours)** | AppSync handles managed WebSockets. `ChatModal.tsx` UI stays identical; only the subscription hook switches to Amplify Data/AppSync client. |
 | **Listing CRUD (Edit & Delete)** | Supabase PostgreSQL `UPDATE` / `DELETE` | **Amazon RDS for PostgreSQL** or **Aurora Serverless** | 🟢 **Low (1 hour)** | 100% SQL compatible. `supabase-schema.sql` imports directly into Amazon RDS with zero syntax modifications. |
 | **Transactional & Update Emails** | React Email + Resend / Brevo (or Novu) | **Amazon SES (Simple Email Service)** | 🟢 **Low (1-2 hours)** | Switch the SMTP/API credentials to SES. Email templates (`React Email`) are 100% portable. Cost drops to $0.10 / 1,000 emails. |
-| **Listing Photo Storage** | Supabase Storage Bucket | **Amazon S3 + CloudFront** | 🟢 **Low (1-2 hours)** | Replace Supabase upload hook with S3 presigned PUT URL. Standard object storage. |
+| **Client-Side Compression & Photo Storage** | Canvas WebP compression + Supabase Storage (`listing-photos`) | **Amazon S3 + CloudFront (with browser Canvas WebP)** | 🟢 **Low (1 hour)** | The client-side Canvas WebP optimizer (`src/utils/imageOptimizer.ts`) is 100% cloud-agnostic. To migrate from Supabase Storage to AWS, replace `uploadListingPhoto` in `src/utils/storage.ts` with an S3 Presigned PUT URL fetch (`s3Client.getSignedUrlPromise('putObject', ...)`). Public assets are served at low latency via Amazon CloudFront CDN. |
 | **Database (PostgreSQL)** | Supabase Managed Postgres | **Amazon RDS for PostgreSQL** or **Aurora Serverless** | 🟢 **Low (1-2 hours)** | 100% SQL compatible. `supabase-schema.sql` imports directly into Amazon RDS with zero syntax modifications. |
 | **Authentication** | Supabase Auth (Google OAuth + Email) | **AWS Cognito User Pools** | 🟡 **Medium (3-5 hours)** | Switching from Supabase Auth to Cognito requires replacing the AuthContext client SDK with `@aws-amplify/auth` or AWS Cognito Identity SDK. (Google OAuth setup remains identical). |
 | **Cron / Scheduled Alerts** | Supabase Scheduled Functions / Cron | **AWS EventBridge + AWS Lambda** | 🟢 **Low (1-2 hours)** | EventBridge cron expression triggers a Lambda function querying DB and dispatching SES emails. |
