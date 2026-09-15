@@ -80,3 +80,23 @@ hfxrentals/
         ├── modal.css            # Modals, photo hero, post wizard, favorites drawer
         └── monetization.css     # Insurance banner, scam shield cards, red flags
 ```
+
+## Architectural Decision Log & AWS Migration Matrix
+
+> [!IMPORTANT]
+> **Permanent Working Guideline**: Whenever introducing, designing, or implementing ANY new feature, utility, library, or third-party service, the agent MUST explicitly assess and report:
+> 1. **AWS Native Equivalent**: What AWS service replaces this.
+> 2. **Migration Difficulty Rating**: (Trivial / Low / Medium / High).
+> 3. **Migration Friction & Effort**: Exactly what changes in code or configuration to move it to AWS.
+
+### Current Component Migration Difficulty Matrix
+
+| Utility / Component | Current / Recommended Tool | AWS Native Equivalent | Migration Difficulty | Migration Notes & Friction |
+| :--- | :--- | :--- | :--- | :--- |
+| **Frontend Hosting** | Vercel (or local Vite) | **AWS Amplify** or **S3 + CloudFront** | 🟢 **Trivial (< 15 mins)** | `amplify.yml` and `deploy-aws-s3.sh` already built in the repo. Zero code changes required. |
+| **Transactional & Update Emails** | React Email + Resend / Brevo (or Novu) | **Amazon SES (Simple Email Service)** | 🟢 **Low (1-2 hours)** | Switch the SMTP/API credentials to SES. Email templates (`React Email`) are 100% portable. Cost drops to $0.10 / 1,000 emails. |
+| **Listing Photo Storage** | Supabase Storage Bucket | **Amazon S3 + CloudFront** | 🟢 **Low (1-2 hours)** | Replace Supabase upload hook with S3 presigned PUT URL. Standard object storage. |
+| **Database (PostgreSQL)** | Supabase Managed Postgres | **Amazon RDS for PostgreSQL** or **Aurora Serverless** | 🟢 **Low (1-2 hours)** | 100% SQL compatible. `supabase-schema.sql` imports directly into Amazon RDS with zero syntax modifications. |
+| **Authentication** | Supabase Auth (Google OAuth + Email) | **AWS Cognito User Pools** | 🟡 **Medium (3-5 hours)** | Switching from Supabase Auth to Cognito requires replacing the AuthContext client SDK with `@aws-amplify/auth` or AWS Cognito Identity SDK. (Google OAuth setup remains identical). |
+| **Cron / Scheduled Alerts** | Supabase Scheduled Functions / Cron | **AWS EventBridge + AWS Lambda** | 🟢 **Low (1-2 hours)** | EventBridge cron expression triggers a Lambda function querying DB and dispatching SES emails. |
+| **Calendar Viewing Scheduler** | Google Calendar link generation | **Same (Client-side URL generator)** | 🟢 **Trivial (0 mins)** | Pure frontend client-side utility (`calendar.google.com/render`); 100% independent of cloud provider. |
