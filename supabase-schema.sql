@@ -186,8 +186,12 @@ CREATE POLICY "Users can update their own listing photos"
     AND auth.uid() = owner
   );
 
-CREATE POLICY "Users can delete their own listing photos"
+DROP POLICY IF EXISTS "Users can delete their own listing photos" ON storage.objects;
+DROP POLICY IF EXISTS "Allow delete for listing-photos" ON storage.objects;
+
+CREATE POLICY "Allow delete for listing-photos"
   ON storage.objects FOR DELETE
+  TO public, anon, authenticated
   USING (
     bucket_id = 'listing-photos'
   );
