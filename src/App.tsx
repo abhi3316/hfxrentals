@@ -468,12 +468,33 @@ export const App: React.FC = () => {
 
   // Handle listing delete
   const handleDeleteListing = async (listingId: string) => {
-    // Find listing to identify any uploaded storage photos to delete
+    // 1. Gather all image URLs from current React state
     const targetListing = rentals.find(r => r.id === listingId) || sublets.find(s => s.id === listingId);
-    if (targetListing && targetListing.images && targetListing.images.length > 0) {
-      deleteListingPhotos(targetListing.images);
+    let imagesToDelete: string[] = targetListing?.images ? [...targetListing.images] : [];
+
+    // 2. Also check Supabase directly in case the listing has images not cached in local state
+    if (supabase) {
+      try {
+        const { data: dbItem } = await supabase
+          .from('listings')
+          .select('images')
+          .eq('id', listingId)
+          .maybeSingle();
+
+        if (dbItem?.images && Array.isArray(dbItem.images)) {
+          imagesToDelete = Array.from(new Set([...imagesToDelete, ...dbItem.images]));
+        }
+      } catch (err) {
+        console.warn('Could not query listing images before delete', err);
+      }
     }
 
+    // 3. Purge image files from Supabase Storage bucket
+    if (imagesToDelete.length > 0) {
+      await deleteListingPhotos(imagesToDelete);
+    }
+
+    // 4. Update React state & localStorage
     setRentals(prev => {
       const next = prev.filter(r => r.id !== listingId);
       safeSetLocalStorage('hfx_local_rentals', next);
@@ -485,6 +506,7 @@ export const App: React.FC = () => {
       return next;
     });
 
+    // 5. Delete listing row from Supabase database
     if (supabase) {
       try {
         await supabase.from('listings').delete().eq('id', listingId);

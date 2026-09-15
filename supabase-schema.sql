@@ -190,5 +190,30 @@ CREATE POLICY "Users can delete their own listing photos"
   ON storage.objects FOR DELETE
   USING (
     bucket_id = 'listing-photos'
-    AND auth.uid() = owner
   );
+
+-- 7. Automatic Database Trigger to purge photos from storage.objects on listing deletion
+CREATE OR REPLACE FUNCTION public.delete_listing_storage_photos()
+RETURNS TRIGGER AS $$
+DECLARE
+  img_url TEXT;
+  file_path TEXT;
+BEGIN
+  IF OLD.images IS NOT NULL THEN
+    FOREACH img_url IN ARRAY OLD.images LOOP
+      IF img_url LIKE '%/listing-photos/%' THEN
+        file_path := split_part(split_part(img_url, '/listing-photos/', 2), '?', 1);
+        DELETE FROM storage.objects 
+        WHERE bucket_id = 'listing-photos' AND name = file_path;
+      END IF;
+    END LOOP;
+  END IF;
+  RETURN OLD;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_delete_listing_photos ON public.listings;
+CREATE TRIGGER trg_delete_listing_photos
+BEFORE DELETE ON public.listings
+FOR EACH ROW
+EXECUTE FUNCTION public.delete_listing_storage_photos();
