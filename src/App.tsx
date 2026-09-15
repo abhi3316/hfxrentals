@@ -182,78 +182,125 @@ export const App: React.FC = () => {
   }, [rentals, sublets, favorites]);
 
   // Fetch listings from Supabase on mount
+  // Helper to identify if listing belongs to active session
+  const isListingOwner = (userId?: string) => {
+    if (!user) return true;
+    if (!userId || userId === 'local-landlord' || userId.startsWith('custom-')) return true;
+    return userId === user.id;
+  };
+
+  // Fetch live Supabase listings
   useEffect(() => {
     const client = supabase;
     if (client) {
       const fetchListings = async () => {
         try {
-          const { data, error } = await client.from('listings').select('*');
-          if (!error && data && data.length > 0) {
+          let data: any[] | null = null;
+          try {
+            const res = await client.from('listings').select('*, profiles:user_id(full_name, email, avatar_url, role)');
+            if (!res.error && res.data) {
+              data = res.data;
+            }
+          } catch {
+            // fallback if foreign key relationship is missing
+          }
+          if (!data) {
+            const res = await client.from('listings').select('*');
+            data = res.data;
+          }
+
+          if (data && data.length > 0) {
             const dbRentals: RentalListing[] = data
               .filter((d: any) => d.category === 'rental')
-              .map((d: any) => ({
-                id: d.id,
-                userId: d.user_id,
-                title: d.title,
-                neighborhood: d.neighborhood,
-                address: d.address,
-                price: Number(d.price),
-                bedrooms: d.bedrooms,
-                bathrooms: d.bathrooms,
-                propertyType: d.property_type || 'Apartment',
-                images: d.images?.length > 0 ? d.images : ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80'],
-                heatingType: d.heating_type || 'Heat & Hot Water Included',
-                estimatedWinterUtilities: d.estimated_winter_utilities || 50,
-                winterParking: d.winter_parking || 'Assigned Driveway',
-                leaseType: d.lease_type || 'Periodic (Year-to-Year, Rent Cap Protected)',
-                petPolicy: d.pet_policy || 'Dogs & Cats Welcome',
-                transitTimes: { dalStudley: 12, dalSexton: 15, smu: 14, msvu: 24, nscc: 28 },
-                availableDate: 'Immediate',
-                isVerifiedLandlord: true,
-                amenities: d.amenities || ['In-Building Laundry', 'Parking'],
-                description: d.description || '',
-                landlord: {
-                  name: (user && d.user_id === user.id) ? user.name : (d.landlord_name || 'Verified Landlord'),
-                  email: (user && d.user_id === user.id) ? user.email : (d.landlord_email || 'landlord@hfxrentals.ca'),
-                  verifiedSince: '2026',
-                  responseRate: 'Under 1 hour',
-                  avatar: (user && d.user_id === user.id && user.avatarUrl) ? user.avatarUrl : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80'
-                }
-              }));
+              .map((d: any) => {
+                const isAuthor = user && (d.user_id === user.id || d.user_id === 'local-landlord');
+                const authorName = isAuthor 
+                  ? user.name 
+                  : (d.profiles?.full_name || d.landlord_name || (user?.name ? user.name : 'Halifax Landlord'));
+                const authorEmail = isAuthor
+                  ? user.email
+                  : (d.profiles?.email || d.landlord_email || (user?.email ? user.email : 'landlord@hfxrentals.ca'));
+                const authorAvatar = isAuthor
+                  ? (user.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80')
+                  : (d.profiles?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80');
+
+                return {
+                  id: d.id,
+                  userId: isAuthor ? user.id : d.user_id,
+                  title: d.title,
+                  neighborhood: d.neighborhood,
+                  address: d.address,
+                  price: Number(d.price),
+                  bedrooms: d.bedrooms,
+                  bathrooms: d.bathrooms,
+                  propertyType: d.property_type || 'Apartment',
+                  images: d.images?.length > 0 ? d.images : ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80'],
+                  heatingType: d.heating_type || 'Heat & Hot Water Included',
+                  estimatedWinterUtilities: d.estimated_winter_utilities || 50,
+                  winterParking: d.winter_parking || 'Assigned Driveway',
+                  leaseType: d.lease_type || 'Periodic (Year-to-Year, Rent Cap Protected)',
+                  petPolicy: d.pet_policy || 'Dogs & Cats Welcome',
+                  transitTimes: { dalStudley: 12, dalSexton: 15, smu: 14, msvu: 24, nscc: 28 },
+                  availableDate: 'Immediate',
+                  isVerifiedLandlord: true,
+                  amenities: d.amenities || ['In-Building Laundry', 'Parking'],
+                  description: d.description || '',
+                  landlord: {
+                    name: authorName,
+                    email: authorEmail,
+                    verifiedSince: '2026',
+                    responseRate: 'Under 1 hour',
+                    avatar: authorAvatar
+                  }
+                };
+              });
 
             const dbSublets: SubletListing[] = data
               .filter((d: any) => d.category === 'sublet')
-              .map((d: any) => ({
-                id: d.id,
-                userId: d.user_id,
-                title: d.title,
-                neighborhood: d.neighborhood,
-                address: d.address,
-                subletPrice: Number(d.price),
-                originalRent: Math.round(Number(d.price) * 1.15),
-                term: d.sublet_term || 'Summer (May 1 - Aug 31)',
-                startDate: 'May 1, 2026',
-                endDate: 'August 31, 2026',
-                bedroomsTotal: d.bedrooms,
-                bathroomsTotal: d.bathrooms,
-                subletScope: 'Entire Apartment',
-                isFurnished: d.is_furnished || true,
-                furnitureIncluded: ['Bed & Mattress', 'Study Desk', 'Sofa'],
-                utilitiesIncluded: true,
-                wifiIncluded: true,
-                transitTimes: { dalStudley: 10, dalSexton: 12, smu: 15, msvu: 22, nscc: 25 },
-                images: d.images?.length > 0 ? d.images : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80'],
-                isStudentVerified: true,
-                studentAffiliation: 'Dalhousie',
-                description: d.description || '',
-                lister: {
-                  name: (user && d.user_id === user.id) ? user.name : (d.lister_name || 'Student Lister'),
-                  email: (user && d.user_id === user.id) ? user.email : (d.lister_email || 'student@dal.ca'),
-                  university: 'Dalhousie',
-                  major: 'Computer Science',
-                  avatar: (user && d.user_id === user.id && user.avatarUrl) ? user.avatarUrl : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'
-                }
-              }));
+              .map((d: any) => {
+                const isAuthor = user && (d.user_id === user.id || d.user_id === 'local-landlord');
+                const authorName = isAuthor 
+                  ? user.name 
+                  : (d.profiles?.full_name || d.lister_name || (user?.name ? user.name : 'Student Lister'));
+                const authorEmail = isAuthor
+                  ? user.email
+                  : (d.profiles?.email || d.lister_email || (user?.email ? user.email : 'student@dal.ca'));
+                const authorAvatar = isAuthor
+                  ? (user.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80')
+                  : (d.profiles?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80');
+
+                return {
+                  id: d.id,
+                  userId: isAuthor ? user.id : d.user_id,
+                  title: d.title,
+                  neighborhood: d.neighborhood,
+                  address: d.address,
+                  subletPrice: Number(d.price),
+                  originalRent: Math.round(Number(d.price) * 1.15),
+                  term: d.sublet_term || 'Summer (May 1 - Aug 31)',
+                  startDate: 'May 1, 2026',
+                  endDate: 'August 31, 2026',
+                  bedroomsTotal: d.bedrooms,
+                  bathroomsTotal: d.bathrooms,
+                  subletScope: 'Entire Apartment',
+                  isFurnished: d.is_furnished || true,
+                  furnitureIncluded: ['Bed & Mattress', 'Study Desk', 'Sofa'],
+                  utilitiesIncluded: true,
+                  wifiIncluded: true,
+                  transitTimes: { dalStudley: 10, dalSexton: 12, smu: 15, msvu: 22, nscc: 25 },
+                  images: d.images?.length > 0 ? d.images : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80'],
+                  isStudentVerified: true,
+                  studentAffiliation: 'Dalhousie',
+                  description: d.description || '',
+                  lister: {
+                    name: authorName,
+                    email: authorEmail,
+                    university: 'Dalhousie',
+                    major: 'Computer Science',
+                    avatar: authorAvatar
+                  }
+                };
+              });
 
             if (dbRentals.length > 0) setRentals(dbRentals);
             if (dbSublets.length > 0) setSublets(dbSublets);
@@ -270,18 +317,52 @@ export const App: React.FC = () => {
   const handleUsernameUpdated = (newName: string) => {
     if (user) {
       setRentals(prev => {
-        const next = prev.map(r => (r.userId === user.id ? {
-          ...r,
-          landlord: { ...r.landlord, name: newName }
-        } : r));
+        const next = prev.map(r => {
+          if (
+            r.userId === user.id ||
+            r.userId === 'local-landlord' ||
+            !r.userId ||
+            r.landlord.name === 'Verified Landlord' ||
+            r.landlord.name === 'Halifax Landlord' ||
+            r.landlord.name === 'You (Landlord)'
+          ) {
+            return {
+              ...r,
+              userId: user.id,
+              landlord: {
+                ...r.landlord,
+                name: newName,
+                avatar: user.avatarUrl || r.landlord.avatar
+              }
+            };
+          }
+          return r;
+        });
         localStorage.setItem('hfx_local_rentals', JSON.stringify(next));
         return next;
       });
+
       setSublets(prev => {
-        const next = prev.map(s => (s.userId === user.id ? {
-          ...s,
-          lister: { ...s.lister, name: newName }
-        } : s));
+        const next = prev.map(s => {
+          if (
+            s.userId === user.id ||
+            s.userId === 'local-landlord' ||
+            !s.userId ||
+            s.lister.name === 'Student Lister' ||
+            s.lister.name === 'You (Landlord)'
+          ) {
+            return {
+              ...s,
+              userId: user.id,
+              lister: {
+                ...s.lister,
+                name: newName,
+                avatar: user.avatarUrl || s.lister.avatar
+              }
+            };
+          }
+          return s;
+        });
         localStorage.setItem('hfx_local_sublets', JSON.stringify(next));
         return next;
       });
@@ -293,7 +374,7 @@ export const App: React.FC = () => {
     if (user?.name) {
       handleUsernameUpdated(user.name);
     }
-  }, [user?.name, user?.id]);
+  }, [user?.name, user?.id, user?.avatarUrl]);
 
   // Handle new listing submission
   const handleListingCreated = (item: any) => {
@@ -423,20 +504,33 @@ export const App: React.FC = () => {
           {activeTab === 'rentals' && (
             <div className="listings-grid">
               {filteredRentals.length > 0 ? (
-                filteredRentals.map(rental => (
-                  <RentalCard
-                    key={rental.id}
-                    listing={rental}
-                    isFavorited={favorites.includes(rental.id)}
-                    onToggleFavorite={toggleFavorite}
-                    onSelectListing={(item) => setSelectedListing(item)}
-                    onScheduleViewing={(item) => setSchedulingListing(item)}
-                    onOpenChat={(item) => setChatListing(item)}
-                    onEditListing={(item) => setEditingListing(item)}
-                    onDeleteListing={handleDeleteListing}
-                    isOwner={user ? rental.userId === user.id : true}
-                  />
-                ))
+                filteredRentals.map(rental => {
+                  const isOwner = isListingOwner(rental.userId);
+                  const displayRental = isOwner && user ? {
+                    ...rental,
+                    userId: user.id,
+                    landlord: {
+                      ...rental.landlord,
+                      name: user.name,
+                      avatar: user.avatarUrl || rental.landlord.avatar
+                    }
+                  } : rental;
+
+                  return (
+                    <RentalCard
+                      key={rental.id}
+                      listing={displayRental}
+                      isFavorited={favorites.includes(rental.id)}
+                      onToggleFavorite={toggleFavorite}
+                      onSelectListing={(item) => setSelectedListing(item)}
+                      onScheduleViewing={(item) => setSchedulingListing(item)}
+                      onOpenChat={(item) => setChatListing(item)}
+                      onEditListing={(item) => setEditingListing(item)}
+                      onDeleteListing={handleDeleteListing}
+                      isOwner={isOwner}
+                    />
+                  );
+                })
               ) : (
                 <div className="empty-state">
                   <SearchX className="empty-state-icon" />
@@ -472,20 +566,33 @@ export const App: React.FC = () => {
           {activeTab === 'sublets' && (
             <div className="listings-grid">
               {filteredSublets.length > 0 ? (
-                filteredSublets.map(sublet => (
-                  <SubletCard
-                    key={sublet.id}
-                    sublet={sublet}
-                    isFavorited={favorites.includes(sublet.id)}
-                    onToggleFavorite={toggleFavorite}
-                    onSelectSublet={(item) => setSelectedListing(item)}
-                    onScheduleViewing={(item) => setSchedulingListing(item)}
-                    onOpenChat={(item) => setChatListing(item)}
-                    onEditListing={(item) => setEditingListing(item)}
-                    onDeleteListing={handleDeleteListing}
-                    isOwner={user ? sublet.userId === user.id : true}
-                  />
-                ))
+                filteredSublets.map(sublet => {
+                  const isOwner = isListingOwner(sublet.userId);
+                  const displaySublet = isOwner && user ? {
+                    ...sublet,
+                    userId: user.id,
+                    lister: {
+                      ...sublet.lister,
+                      name: user.name,
+                      avatar: user.avatarUrl || sublet.lister.avatar
+                    }
+                  } : sublet;
+
+                  return (
+                    <SubletCard
+                      key={sublet.id}
+                      sublet={displaySublet}
+                      isFavorited={favorites.includes(sublet.id)}
+                      onToggleFavorite={toggleFavorite}
+                      onSelectSublet={(item) => setSelectedListing(item)}
+                      onScheduleViewing={(item) => setSchedulingListing(item)}
+                      onOpenChat={(item) => setChatListing(item)}
+                      onEditListing={(item) => setEditingListing(item)}
+                      onDeleteListing={handleDeleteListing}
+                      isOwner={isOwner}
+                    />
+                  );
+                })
               ) : (
                 <div className="empty-state">
                   <SearchX className="empty-state-icon" />
@@ -592,30 +699,51 @@ export const App: React.FC = () => {
       </footer>
 
       {/* Modals & Drawers */}
-      {selectedListing && (
-        <ListingDetailModal
-          listing={selectedListing}
-          onClose={() => setSelectedListing(null)}
-          onOpenScamShield={() => {
-            setSelectedListing(null);
-            setActiveTab('scam-shield');
-          }}
-          onOpenViewingScheduler={(item) => {
-            setSelectedListing(null);
-            setSchedulingListing(item);
-          }}
-          onOpenChat={(item) => {
-            setSelectedListing(null);
-            setChatListing(item);
-          }}
-          onEditListing={(item) => {
-            setSelectedListing(null);
-            setEditingListing(item);
-          }}
-          onDeleteListing={handleDeleteListing}
-          isOwner={user ? selectedListing.userId === user.id : true}
-        />
-      )}
+      {selectedListing && (() => {
+        const isOwner = isListingOwner(selectedListing.userId);
+        const displaySelected = isOwner && user ? ('price' in selectedListing ? {
+          ...selectedListing,
+          userId: user.id,
+          landlord: {
+            ...selectedListing.landlord,
+            name: user.name,
+            avatar: user.avatarUrl || selectedListing.landlord.avatar
+          }
+        } : {
+          ...selectedListing,
+          userId: user.id,
+          lister: {
+            ...selectedListing.lister,
+            name: user.name,
+            avatar: user.avatarUrl || selectedListing.lister.avatar
+          }
+        }) : selectedListing;
+
+        return (
+          <ListingDetailModal
+            listing={displaySelected}
+            onClose={() => setSelectedListing(null)}
+            onOpenScamShield={() => {
+              setSelectedListing(null);
+              setActiveTab('scam-shield');
+            }}
+            onOpenViewingScheduler={(item) => {
+              setSelectedListing(null);
+              setSchedulingListing(item);
+            }}
+            onOpenChat={(item) => {
+              setSelectedListing(null);
+              setChatListing(item);
+            }}
+            onEditListing={(item) => {
+              setSelectedListing(null);
+              setEditingListing(item);
+            }}
+            onDeleteListing={handleDeleteListing}
+            isOwner={isOwner}
+          />
+        );
+      })()}
 
       {schedulingListing && (
         <ViewingSchedulerModal
@@ -624,16 +752,37 @@ export const App: React.FC = () => {
         />
       )}
 
-      {chatListing && (
-        <ChatModal
-          listing={chatListing}
-          onClose={() => setChatListing(null)}
-          onOpenViewingScheduler={(item) => {
-            setChatListing(null);
-            setSchedulingListing(item);
-          }}
-        />
-      )}
+      {chatListing && (() => {
+        const isOwner = isListingOwner(chatListing.userId);
+        const displayChat = isOwner && user ? ('price' in chatListing ? {
+          ...chatListing,
+          userId: user.id,
+          landlord: {
+            ...chatListing.landlord,
+            name: user.name,
+            avatar: user.avatarUrl || chatListing.landlord.avatar
+          }
+        } : {
+          ...chatListing,
+          userId: user.id,
+          lister: {
+            ...chatListing.lister,
+            name: user.name,
+            avatar: user.avatarUrl || chatListing.lister.avatar
+          }
+        }) : chatListing;
+
+        return (
+          <ChatModal
+            listing={displayChat}
+            onClose={() => setChatListing(null)}
+            onOpenViewingScheduler={(item) => {
+              setChatListing(null);
+              setSchedulingListing(item);
+            }}
+          />
+        );
+      })()}
 
       {editingListing && (
         <EditListingModal

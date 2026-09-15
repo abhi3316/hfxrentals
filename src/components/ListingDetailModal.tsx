@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { RentalListing, SubletListing } from '../types';
-import { X, MapPin, Flame, Bus, Send, CheckCircle2, MessageCircle, Edit3, Trash2 } from 'lucide-react';
+import { X, MapPin, Flame, Bus, Send, CheckCircle2, MessageCircle, Edit3, Trash2, ShieldCheck } from 'lucide-react';
 import '../styles/modal.css';
 
 interface ListingDetailModalProps {
@@ -270,6 +270,48 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
             >
               Book Inspection ($69)
             </button>
+          </div>
+
+          {/* Landlord / Lister Profile Card */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '16px 20px',
+              background: 'var(--navy-800)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--glass-border)',
+              marginBottom: 20
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <img
+                src={isRental ? (listing as RentalListing).landlord.avatar : (listing as SubletListing).lister.avatar}
+                alt={isRental ? (listing as RentalListing).landlord.name : (listing as SubletListing).lister.name}
+                style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--teal-500)' }}
+              />
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#ffffff', margin: 0 }}>
+                    {isRental ? (listing as RentalListing).landlord.name : (listing as SubletListing).lister.name}
+                  </h4>
+                  <span className="badge badge-teal" style={{ fontSize: '0.72rem', padding: '2px 8px' }}>
+                    <ShieldCheck size={11} /> Verified {isRental ? 'Landlord' : 'Student'}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--slate-400)', marginTop: 3 }}>
+                  {isRental
+                    ? `Verified Landlord • ${(listing as RentalListing).landlord.responseRate} response`
+                    : `${(listing as SubletListing).lister.university} Student • ${(listing as SubletListing).lister.major}`}
+                </div>
+              </div>
+            </div>
+            {isOwner && (
+              <span className="badge badge-amber" style={{ fontSize: '0.75rem', padding: '4px 10px' }}>
+                Your Profile
+              </span>
+            )}
           </div>
 
           {/* Contact / Inquiry Box */}

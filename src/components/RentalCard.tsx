@@ -48,7 +48,7 @@ export const RentalCard: React.FC<RentalCardProps> = ({
             {listing.isVerifiedLandlord && (
               <span className="badge badge-teal">
                 <ShieldCheck size={12} />
-                Verified Landlord
+                {listing.landlord?.name ? `Verified • ${listing.landlord.name}` : 'Verified Landlord'}
               </span>
             )}
             {isOwner && (
