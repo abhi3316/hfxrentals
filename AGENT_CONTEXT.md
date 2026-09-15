@@ -19,7 +19,12 @@
    * Instant slot booking synced to landlord calendar (`ViewingSchedulerModal.tsx`).
    * Support for In-Person Walkthroughs and Live Video Tours (Google Meet / FaceTime) for remote students.
    * One-click "Add to Google Calendar" link generation (`https://calendar.google.com/calendar/render?...`) and .ics export.
-5. **Scam Shield & Trust Layer**:
+5. **Authentication & Supabase PostgreSQL Database**:
+   * Open-source backend integration (`src/lib/supabase.ts`, `src/context/AuthContext.tsx`).
+   * Dual mode: Live Supabase Auth + Database when credentials provided, or instant local demo mode with 1-click profiles.
+   * Automatic university student email detection (`@dal.ca`, `@smu.ca`, `@msvu.ca`, `@nscc.ca`).
+   * Database schema file `supabase-schema.sql` (profiles, listings, viewings, RLS policies).
+6. **Scam Shield & Trust Layer**:
    * Remote student in-person inspection bookings ($69), Land registry ownership audits ($39), and Halifax rental scam warnings.
 6. **Monetization Touchpoints**:
    * Microtransactions: $9.99 Urgent Sublet & Featured boosts.

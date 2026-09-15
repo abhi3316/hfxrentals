@@ -1,5 +1,18 @@
 export type TabType = 'rentals' | 'sublets' | 'roommates' | 'scam-shield';
 
+export type UserRole = 'renter' | 'landlord' | 'student';
+
+export interface AppUser {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  avatarUrl?: string;
+  universityAffiliation?: 'Dalhousie' | "Saint Mary's" | 'MSVU' | 'NSCAD' | 'NSCC';
+  isVerifiedStudent?: boolean;
+  hasFastPassVerified?: boolean;
+}
+
 export type HalifaxNeighborhood = 
   | 'South End'
   | 'North End'

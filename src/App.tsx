@@ -10,6 +10,7 @@ import { RoommateCard } from './components/RoommateCard';
 import { ListingDetailModal } from './components/ListingDetailModal';
 import { ViewingSchedulerModal } from './components/ViewingSchedulerModal';
 import { PostListingModal } from './components/PostListingModal';
+import { AuthModal } from './components/AuthModal';
 import { InsuranceWidget } from './components/InsuranceWidget';
 import { ScamShieldBanner } from './components/ScamShieldBanner';
 import { FavoritesDrawer } from './components/FavoritesDrawer';
@@ -48,6 +49,7 @@ export const App: React.FC = () => {
   const [favorites, setFavorites] = useState<string[]>(['hfx-rent-01', 'sublet-01']);
   const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
   const [isPostListingOpen, setIsPostListingOpen] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [selectedListing, setSelectedListing] = useState<RentalListing | SubletListing | null>(null);
   const [schedulingListing, setSchedulingListing] = useState<RentalListing | SubletListing | null>(null);
 
@@ -192,6 +194,7 @@ export const App: React.FC = () => {
         favoritesCount={favorites.length}
         onOpenFavorites={() => setIsFavoritesOpen(true)}
         onOpenPostListing={() => setIsPostListingOpen(true)}
+        onOpenAuth={() => setIsAuthOpen(true)}
       />
 
       <main>
@@ -375,6 +378,11 @@ export const App: React.FC = () => {
           onListingCreated={handleListingCreated}
         />
       )}
+
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+      />
 
       <FavoritesDrawer
         isOpen={isFavoritesOpen}
