@@ -182,16 +182,16 @@ export const RentalCard: React.FC<RentalCardProps> = ({
 
           {onOpenChat && (
             <button
-              className="btn btn-secondary"
+              className={`btn ${isOwner ? 'btn-primary' : 'btn-secondary'}`}
               style={{ padding: '6px 10px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: 4 }}
               onClick={(e) => {
                 e.stopPropagation();
                 onOpenChat(listing);
               }}
-              title="Chat with landlord"
+              title={isOwner ? 'View prospective tenant inquiries' : 'Chat with landlord'}
             >
-              <MessageCircle size={14} color="var(--teal-400)" />
-              <span>Chat</span>
+              <MessageCircle size={14} color={isOwner ? '#071321' : 'var(--teal-400)'} />
+              <span>{isOwner ? 'Inquiries' : 'Chat'}</span>
             </button>
           )}
 

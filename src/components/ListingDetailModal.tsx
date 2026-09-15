@@ -94,7 +94,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                 }}
               >
                 <MessageCircle size={16} />
-                Chat with {isRental ? 'Landlord' : 'Lister'}
+                {isOwner ? 'View Prospective Inquiries' : `Chat with ${isRental ? 'Landlord' : 'Lister'}`}
               </button>
 
               <button

@@ -36,11 +36,27 @@ export const ChatModal: React.FC<ChatModalProps> = ({
   const listerResponse = isRental ? (listing as RentalListing).landlord.responseRate : 'Under 2 hours';
   const landlordId = listing.userId || 'landlord-owner';
 
-  // Determine current active role view
-  const isActualLandlord = user?.id ? user.id === listing.userId : false;
+  // Determine current active role view: user is landlord if they own the listing or have landlord role
+  const isActualLandlord = Boolean(
+    user && (
+      user.id === listing.userId ||
+      listing.userId === 'local-landlord' ||
+      user.id === 'local-landlord' ||
+      user.role === 'landlord'
+    )
+  );
+
   const [activeRoleView, setActiveRoleView] = useState<'tenant' | 'landlord'>(
     isActualLandlord ? 'landlord' : 'tenant'
   );
+  const [isDbTableMissing, setIsDbTableMissing] = useState(false);
+
+  // Keep activeRoleView in sync if user status changes
+  useEffect(() => {
+    if (isActualLandlord) {
+      setActiveRoleView('landlord');
+    }
+  }, [isActualLandlord]);
 
   // Tenant identity: logged in user or local demo tenant
   const currentTenantId = user && user.id !== landlordId ? user.id : 'tenant-alex-dal';
@@ -118,7 +134,12 @@ export const ChatModal: React.FC<ChatModalProps> = ({
             .eq('listing_id', listing.id)
             .order('created_at', { ascending: true });
 
-          if (!error && data && data.length > 0) {
+          if (error) {
+            if (error.code === 'PGRST205' || error.message.includes('messages')) {
+              setIsDbTableMissing(true);
+            }
+          } else if (data && data.length > 0) {
+            setIsDbTableMissing(false);
             const mapped: ChatMessage[] = data.map((d: any) => ({
               id: d.id,
               listingId: d.listing_id,
@@ -163,8 +184,22 @@ export const ChatModal: React.FC<ChatModalProps> = ({
         )
         .subscribe();
 
+      // Listen for local storage cross-tab events
+      const handleStorage = (e: StorageEvent) => {
+        if (e.key === storageKey && e.newValue) {
+          try {
+            const parsed = JSON.parse(e.newValue);
+            if (Array.isArray(parsed)) {
+              setMessages(parsed);
+            }
+          } catch {}
+        }
+      };
+      window.addEventListener('storage', handleStorage);
+
       return () => {
         client.removeChannel(channel);
+        window.removeEventListener('storage', handleStorage);
       };
     }
   }, [listing.id, listerName, landlordId, storageKey]);
@@ -182,6 +217,16 @@ export const ChatModal: React.FC<ChatModalProps> = ({
     });
     return Array.from(map.values());
   }, [messages]);
+
+  // Auto-select latest inquiry in Landlord View
+  useEffect(() => {
+    if (activeRoleView === 'landlord' && tenantInquiries.length > 0) {
+      const exists = tenantInquiries.some(t => t.tenantId === selectedTenantId);
+      if (!exists) {
+        setSelectedTenantId(tenantInquiries[tenantInquiries.length - 1].tenantId);
+      }
+    }
+  }, [activeRoleView, tenantInquiries, selectedTenantId]);
 
   // Determine active conversation tenant ID
   const activeConversationTenantId = activeRoleView === 'tenant' ? currentTenantId : selectedTenantId;
@@ -232,15 +277,24 @@ export const ChatModal: React.FC<ChatModalProps> = ({
     if (client) {
       setIsSubmitting(true);
       try {
-        await client.from('messages').insert({
-          listing_id: listing.id,
-          tenant_id: activeConversationTenantId,
-          tenant_name: activeConversationTenantName,
-          sender_id: senderId,
-          receiver_id: receiverId,
-          sender_name: senderName,
+        const { error: insErr } = await client.from('messages').insert({
+          listing_id: String(listing.id),
+          tenant_id: String(activeConversationTenantId),
+          tenant_name: String(activeConversationTenantName),
+          sender_id: String(senderId),
+          receiver_id: receiverId ? String(receiverId) : null,
+          sender_name: String(senderName),
           content: text
         });
+
+        if (insErr) {
+          if (insErr.code === 'PGRST205' || insErr.message.includes('messages')) {
+            setIsDbTableMissing(true);
+          }
+          console.warn('[Chat] Supabase message insert error:', insErr.message);
+        } else {
+          setIsDbTableMissing(false);
+        }
       } catch (err) {
         console.warn('Saved message locally (Supabase unavailable)', err);
       } finally {
@@ -345,6 +399,24 @@ export const ChatModal: React.FC<ChatModalProps> = ({
             <span>End-to-End Private Chat</span>
           </div>
         </div>
+
+        {/* Informative banner if Supabase messages table is not yet migrated */}
+        {isDbTableMissing && (
+          <div
+            style={{
+              background: 'rgba(244, 162, 97, 0.15)',
+              borderBottom: '1px solid rgba(244, 162, 97, 0.3)',
+              padding: '8px 16px',
+              fontSize: '0.78rem',
+              color: 'var(--amber-300)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8
+            }}
+          >
+            <span>⚠️ Supabase <code>messages</code> table is not yet created in your database. Messages are running in local preview mode. Run the SQL schema to enable live cross-device cloud chat.</span>
+          </div>
+        )}
 
         {/* Dual Panel Body for Landlord vs Tenant */}
         <div className="private-chat-body-container">

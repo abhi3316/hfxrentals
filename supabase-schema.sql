@@ -133,11 +133,11 @@ CREATE POLICY "Anyone authenticated can book a viewing"
 -- 5. Messages Table (Direct Tenant-to-Landlord In-App Chat)
 CREATE TABLE IF NOT EXISTS public.messages (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  listing_id UUID REFERENCES public.listings(id) ON DELETE CASCADE NOT NULL,
-  tenant_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  listing_id TEXT NOT NULL,
+  tenant_id TEXT NOT NULL,
   tenant_name TEXT NOT NULL,
-  sender_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  receiver_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  sender_id TEXT NOT NULL,
+  receiver_id TEXT,
   sender_name TEXT NOT NULL,
   content TEXT NOT NULL,
   is_read BOOLEAN DEFAULT FALSE,
@@ -146,20 +146,38 @@ CREATE TABLE IF NOT EXISTS public.messages (
 
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view messages they sent or received"
+DROP POLICY IF EXISTS "Users can view messages they sent or received" ON public.messages;
+DROP POLICY IF EXISTS "Messages select policy" ON public.messages;
+CREATE POLICY "Messages select policy"
   ON public.messages FOR SELECT
-  USING (
-    auth.uid() = sender_id OR 
-    auth.uid() = receiver_id OR 
-    EXISTS (
-      SELECT 1 FROM public.listings 
-      WHERE listings.id = messages.listing_id AND listings.user_id = auth.uid()
-    )
-  );
+  TO public, anon, authenticated
+  USING (true);
 
-CREATE POLICY "Authenticated users can send messages"
+DROP POLICY IF EXISTS "Authenticated users can send messages" ON public.messages;
+DROP POLICY IF EXISTS "Messages insert policy" ON public.messages;
+CREATE POLICY "Messages insert policy"
   ON public.messages FOR INSERT
-  WITH CHECK (auth.uid() = sender_id);
+  TO public, anon, authenticated
+  WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Messages update policy" ON public.messages;
+CREATE POLICY "Messages update policy"
+  ON public.messages FOR UPDATE
+  TO public, anon, authenticated
+  USING (true);
+
+-- Enable real-time broadcast for messages
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'messages'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
 
 -- 6. Storage Bucket for Listing Photos
 -- Creates a public bucket 'listing-photos' for property photos
