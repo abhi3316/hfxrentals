@@ -72,3 +72,37 @@ export const uploadMultipleListingPhotos = async (
 
   return urls;
 };
+
+/**
+ * Deletes photos from the Supabase Storage bucket when a listing is removed,
+ * ensuring storage space is immediately reclaimed.
+ */
+export const deleteListingPhotos = async (imageUrls: string[]): Promise<void> => {
+  if (!isSupabaseConfigured || !supabase || !imageUrls || imageUrls.length === 0) {
+    return;
+  }
+
+  try {
+    const filePaths: string[] = [];
+    for (const url of imageUrls) {
+      if (typeof url === 'string' && url.includes('/listing-photos/')) {
+        const parts = url.split('/listing-photos/');
+        if (parts[1]) {
+          filePaths.push(parts[1]);
+        }
+      }
+    }
+
+    if (filePaths.length > 0) {
+      const { error } = await supabase.storage
+        .from('listing-photos')
+        .remove(filePaths);
+
+      if (error) {
+        console.warn('Could not remove photos from Supabase Storage:', error.message);
+      }
+    }
+  } catch (err) {
+    console.warn('Error deleting listing photos from storage:', err);
+  }
+};

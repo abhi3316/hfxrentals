@@ -31,8 +31,8 @@ export const RentalCard: React.FC<RentalCardProps> = ({
       {/* Media Header */}
       <div className="card-media-wrapper" onClick={() => onSelectListing(listing)}>
         <img
-          src={listing.images[0]}
-          alt={listing.title}
+          src={listing.images?.[0] || 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80'}
+          alt={listing.title || 'Halifax Rental'}
           className="card-image"
           loading="lazy"
         />
@@ -103,7 +103,7 @@ export const RentalCard: React.FC<RentalCardProps> = ({
         </div>
 
         <div className="card-price-overlay">
-          <span className="card-price-amount">${listing.price.toLocaleString()}</span>
+          <span className="card-price-amount">${(listing.price || 0).toLocaleString()}</span>
           <span className="card-price-period">CAD / month</span>
         </div>
       </div>
@@ -112,21 +112,21 @@ export const RentalCard: React.FC<RentalCardProps> = ({
       <div className="card-body">
         <div className="card-location">
           <MapPin size={13} />
-          <span>{listing.neighborhood} • {listing.propertyType}</span>
+          <span>{listing.neighborhood || 'Halifax'} • {listing.propertyType || 'Apartment'}</span>
         </div>
 
         <h3 className="card-title" onClick={() => onSelectListing(listing)} style={{ cursor: 'pointer' }}>
-          {listing.title}
+          {listing.title || 'Halifax Rental Unit'}
         </h3>
 
         <div className="card-specs-row">
           <div className="card-spec-item">
             <Bed size={15} />
-            <span>{listing.bedrooms === 0 ? 'Studio' : `${listing.bedrooms} Bed`}</span>
+            <span>{listing.bedrooms === 0 ? 'Studio' : `${listing.bedrooms || 1} Bed`}</span>
           </div>
           <div className="card-spec-item">
             <Bath size={15} />
-            <span>{listing.bathrooms} Bath</span>
+            <span>{listing.bathrooms || 1} Bath</span>
           </div>
           {listing.sqft && (
             <div className="card-spec-item">
@@ -142,8 +142,8 @@ export const RentalCard: React.FC<RentalCardProps> = ({
               <Flame size={13} />
               Heating:
             </span>
-            <span className={`hfx-chip-val ${listing.heatingType.includes('Included') ? 'highlight-green' : ''}`}>
-              {listing.heatingType} (~${listing.estimatedWinterUtilities}/mo)
+            <span className={`hfx-chip-val ${(listing.heatingType || '').includes('Included') ? 'highlight-green' : ''}`}>
+              {listing.heatingType || 'Electric Baseboard'} (~${listing.estimatedWinterUtilities || 50}/mo)
             </span>
           </div>
 
@@ -152,8 +152,8 @@ export const RentalCard: React.FC<RentalCardProps> = ({
               <Car size={13} />
               Winter Parking:
             </span>
-            <span className={`hfx-chip-val ${listing.winterParking.includes('Underground') || listing.winterParking.includes('Driveway') ? 'highlight-blue' : 'highlight-amber'}`}>
-              {listing.winterParking}
+            <span className={`hfx-chip-val ${(listing.winterParking || '').includes('Underground') || (listing.winterParking || '').includes('Driveway') ? 'highlight-blue' : 'highlight-amber'}`}>
+              {listing.winterParking || 'Street Permit Only'}
             </span>
           </div>
         </div>
@@ -162,7 +162,7 @@ export const RentalCard: React.FC<RentalCardProps> = ({
         <div className="campus-commute-pill">
           <Bus size={13} />
           <span>
-            🚌 Dal Studley: {listing.transitTimes.dalStudley}m • SMU: {listing.transitTimes.smu}m • DT: {listing.transitTimes.dalSexton}m
+            🚌 Dal Studley: {listing.transitTimes?.dalStudley || 12}m • SMU: {listing.transitTimes?.smu || 15}m • DT: {listing.transitTimes?.dalSexton || 15}m
           </span>
         </div>
 
@@ -170,13 +170,13 @@ export const RentalCard: React.FC<RentalCardProps> = ({
         <div className="card-footer" style={{ gap: 8 }}>
           <div className="lister-info" style={{ flex: 1 }}>
             <img
-              src={listing.landlord.avatar}
-              alt={listing.landlord.name}
+              src={listing.landlord?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80'}
+              alt={listing.landlord?.name || 'Landlord'}
               className="lister-avatar"
             />
             <div>
-              <div className="lister-name">{listing.landlord.name}</div>
-              <div className="lister-sub">{listing.landlord.responseRate} response</div>
+              <div className="lister-name">{listing.landlord?.name || 'Halifax Landlord'}</div>
+              <div className="lister-sub">{listing.landlord?.responseRate || 'Under 1 hour'} response</div>
             </div>
           </div>
 

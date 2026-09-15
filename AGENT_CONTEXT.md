@@ -65,6 +65,7 @@ hfxrentals/
     ├── data/
     │   └── mockData.ts          # Authentic Halifax listings, sublets, roommate profiles
     ├── components/
+    │   ├── ErrorBoundary.tsx    # Global React error barrier with automatic cache reset
     │   ├── Navbar.tsx           # Header with tabs, brand, favorites counter, post ad
     │   ├── HeroBanner.tsx       # Dynamic search, market stats, neighborhood chips
     │   ├── FilterBar.tsx        # Local Halifax toggles, campus slider, price ranges

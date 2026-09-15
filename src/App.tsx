@@ -3,6 +3,7 @@ import type { TabType, FilterState, RentalListing, SubletListing, RoommateProfil
 import { MOCK_RENTALS, MOCK_SUBLETS, MOCK_ROOMMATES } from './data/mockData';
 import { useAuth } from './context/AuthContext';
 import { supabase } from './lib/supabase';
+import { deleteListingPhotos } from './utils/storage';
 import { Navbar } from './components/Navbar';
 import { HeroBanner } from './components/HeroBanner';
 import { FilterBar } from './components/FilterBar';
@@ -47,13 +48,24 @@ export const App: React.FC = () => {
   const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
   
   // Listings data state: starts clean with 0 mock listings (or local/supabase items)
+  // Listings data state: starts clean with 0 mock listings (or local/supabase items)
   const [rentals, setRentals] = useState<RentalListing[]>(() => {
-    const local = localStorage.getItem('hfx_local_rentals');
-    return local ? JSON.parse(local) : [];
+    try {
+      const local = localStorage.getItem('hfx_local_rentals');
+      return local ? JSON.parse(local) : [];
+    } catch (e) {
+      console.warn('Failed to parse localStorage rentals:', e);
+      return [];
+    }
   });
   const [sublets, setSublets] = useState<SubletListing[]>(() => {
-    const local = localStorage.getItem('hfx_local_sublets');
-    return local ? JSON.parse(local) : [];
+    try {
+      const local = localStorage.getItem('hfx_local_sublets');
+      return local ? JSON.parse(local) : [];
+    } catch (e) {
+      console.warn('Failed to parse localStorage sublets:', e);
+      return [];
+    }
   });
   const [roommates, setRoommates] = useState<RoommateProfile[]>(MOCK_ROOMMATES);
 
@@ -86,34 +98,34 @@ export const App: React.FC = () => {
       // Search
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        const matchTitle = r.title.toLowerCase().includes(q);
-        const matchAddr = r.address.toLowerCase().includes(q);
-        const matchNeigh = r.neighborhood.toLowerCase().includes(q);
-        const matchDesc = r.description.toLowerCase().includes(q);
+        const matchTitle = (r.title || '').toLowerCase().includes(q);
+        const matchAddr = (r.address || '').toLowerCase().includes(q);
+        const matchNeigh = (r.neighborhood || '').toLowerCase().includes(q);
+        const matchDesc = (r.description || '').toLowerCase().includes(q);
         if (!matchTitle && !matchAddr && !matchNeigh && !matchDesc) return false;
       }
       // Neighborhood
       if (selectedNeighborhood !== 'all' && r.neighborhood !== selectedNeighborhood) return false;
       // Max price
-      if (r.price > filters.maxPrice) return false;
+      if ((r.price || 0) > filters.maxPrice) return false;
       // Bedrooms
       if (filters.bedrooms !== 'all') {
         if (filters.bedrooms === '3+') {
-          if (r.bedrooms < 3) return false;
+          if ((r.bedrooms || 0) < 3) return false;
         } else if (r.bedrooms !== Number(filters.bedrooms)) {
           return false;
         }
       }
       // Heat included
-      if (filters.heatIncludedOnly && !r.heatingType.includes('Included')) return false;
+      if (filters.heatIncludedOnly && !(r.heatingType || '').includes('Included')) return false;
       // Parking
-      if (filters.parkingIncludedOnly && (r.winterParking === 'No Parking' || r.winterParking.includes('Permit'))) return false;
+      if (filters.parkingIncludedOnly && ((r.winterParking || '') === 'No Parking' || (r.winterParking || '').includes('Permit'))) return false;
       // Pet friendly
       if (filters.petFriendlyOnly && r.petPolicy === 'No Pets') return false;
       // Verified only
       if (filters.verifiedOnly && !r.isVerifiedLandlord) return false;
       // Campus filter
-      if (filters.campusFilter !== 'all') {
+      if (filters.campusFilter !== 'all' && r.transitTimes) {
         const transitTime = r.transitTimes[filters.campusFilter as keyof typeof r.transitTimes] || 999;
         if (transitTime > filters.maxTransitMins) return false;
       }
@@ -126,23 +138,23 @@ export const App: React.FC = () => {
     return sublets.filter(s => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        const matchTitle = s.title.toLowerCase().includes(q);
-        const matchNeigh = s.neighborhood.toLowerCase().includes(q);
-        const matchDesc = s.description.toLowerCase().includes(q);
-        const matchUniv = s.studentAffiliation?.toLowerCase().includes(q);
+        const matchTitle = (s.title || '').toLowerCase().includes(q);
+        const matchNeigh = (s.neighborhood || '').toLowerCase().includes(q);
+        const matchDesc = (s.description || '').toLowerCase().includes(q);
+        const matchUniv = (s.studentAffiliation || '').toLowerCase().includes(q);
         if (!matchTitle && !matchNeigh && !matchDesc && !matchUniv) return false;
       }
       if (selectedNeighborhood !== 'all' && s.neighborhood !== selectedNeighborhood) return false;
-      if (s.subletPrice > filters.maxPrice) return false;
+      if ((s.subletPrice || 0) > filters.maxPrice) return false;
       if (filters.subletTerm !== 'all') {
-        if (filters.subletTerm === 'summer' && !s.term.includes('Summer')) return false;
-        if (filters.subletTerm === 'fall' && !s.term.includes('Fall')) return false;
-        if (filters.subletTerm === 'winter' && !s.term.includes('Winter')) return false;
+        if (filters.subletTerm === 'summer' && !(s.term || '').includes('Summer')) return false;
+        if (filters.subletTerm === 'fall' && !(s.term || '').includes('Fall')) return false;
+        if (filters.subletTerm === 'winter' && !(s.term || '').includes('Winter')) return false;
       }
       if (filters.furnishedOnly && !s.isFurnished) return false;
       if (filters.heatIncludedOnly && (!s.utilitiesIncluded || !s.wifiIncluded)) return false;
       if (filters.verifiedOnly && !s.isStudentVerified) return false;
-      if (filters.campusFilter !== 'all') {
+      if (filters.campusFilter !== 'all' && s.transitTimes) {
         const transitTime = s.transitTimes[filters.campusFilter as keyof typeof s.transitTimes] || 999;
         if (transitTime > filters.maxTransitMins) return false;
       }
@@ -376,12 +388,36 @@ export const App: React.FC = () => {
     }
   }, [user?.name, user?.id, user?.avatarUrl]);
 
+  // Safe helper to persist to localStorage without hitting quota errors or crashing React
+  const safeSetLocalStorage = (key: string, data: any) => {
+    try {
+      // If saving listings, replace heavy data:image/ base64 strings to prevent QuotaExceededError
+      const sanitized = Array.isArray(data) ? data.map(item => {
+        if (item.images && Array.isArray(item.images)) {
+          return {
+            ...item,
+            images: item.images.map((img: string) =>
+              img && typeof img === 'string' && img.startsWith('data:image/')
+                ? 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80'
+                : img
+            )
+          };
+        }
+        return item;
+      }) : data;
+
+      localStorage.setItem(key, JSON.stringify(sanitized));
+    } catch (e) {
+      console.warn(`localStorage save failed for ${key}:`, e);
+    }
+  };
+
   // Handle new listing submission
   const handleListingCreated = (item: any) => {
     if (item.subletPrice !== undefined) {
       setSublets(prev => {
         const updated = [item, ...prev];
-        localStorage.setItem('hfx_local_sublets', JSON.stringify(updated));
+        safeSetLocalStorage('hfx_local_sublets', updated);
         return updated;
       });
       setActiveTab('sublets');
@@ -391,7 +427,7 @@ export const App: React.FC = () => {
     } else {
       setRentals(prev => {
         const updated = [item, ...prev];
-        localStorage.setItem('hfx_local_rentals', JSON.stringify(updated));
+        safeSetLocalStorage('hfx_local_rentals', updated);
         return updated;
       });
       setActiveTab('rentals');
@@ -403,13 +439,13 @@ export const App: React.FC = () => {
     if ('price' in updated) {
       setRentals(prev => {
         const next = prev.map(r => r.id === updated.id ? (updated as RentalListing) : r);
-        localStorage.setItem('hfx_local_rentals', JSON.stringify(next));
+        safeSetLocalStorage('hfx_local_rentals', next);
         return next;
       });
     } else {
       setSublets(prev => {
         const next = prev.map(s => s.id === updated.id ? (updated as SubletListing) : s);
-        localStorage.setItem('hfx_local_sublets', JSON.stringify(next));
+        safeSetLocalStorage('hfx_local_sublets', next);
         return next;
       });
     }
@@ -432,14 +468,20 @@ export const App: React.FC = () => {
 
   // Handle listing delete
   const handleDeleteListing = async (listingId: string) => {
+    // Find listing to identify any uploaded storage photos to delete
+    const targetListing = rentals.find(r => r.id === listingId) || sublets.find(s => s.id === listingId);
+    if (targetListing && targetListing.images && targetListing.images.length > 0) {
+      deleteListingPhotos(targetListing.images);
+    }
+
     setRentals(prev => {
       const next = prev.filter(r => r.id !== listingId);
-      localStorage.setItem('hfx_local_rentals', JSON.stringify(next));
+      safeSetLocalStorage('hfx_local_rentals', next);
       return next;
     });
     setSublets(prev => {
       const next = prev.filter(s => s.id !== listingId);
-      localStorage.setItem('hfx_local_sublets', JSON.stringify(next));
+      safeSetLocalStorage('hfx_local_sublets', next);
       return next;
     });
 
@@ -510,9 +552,9 @@ export const App: React.FC = () => {
                     ...rental,
                     userId: user.id,
                     landlord: {
-                      ...rental.landlord,
+                      ...(rental.landlord || {}),
                       name: user.name,
-                      avatar: user.avatarUrl || rental.landlord.avatar
+                      avatar: user.avatarUrl || rental.landlord?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80'
                     }
                   } : rental;
 
@@ -572,9 +614,9 @@ export const App: React.FC = () => {
                     ...sublet,
                     userId: user.id,
                     lister: {
-                      ...sublet.lister,
+                      ...(sublet.lister || {}),
                       name: user.name,
-                      avatar: user.avatarUrl || sublet.lister.avatar
+                      avatar: user.avatarUrl || sublet.lister?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'
                     }
                   } : sublet;
 

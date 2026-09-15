@@ -98,24 +98,28 @@ export const PostListingModal: React.FC<PostListingModalProps> = ({
     }
     setIsUploading(false);
 
+    const parsedPrice = Number(price) > 0 ? Number(price) : (listingType === 'roommate' ? 950 : (listingType === 'sublet' ? 1200 : 1850));
+    const parsedBedrooms = !isNaN(Number(bedrooms)) ? Number(bedrooms) : 2;
+    const parsedBathrooms = !isNaN(Number(bathrooms)) ? Number(bathrooms) : 1;
+
     const createdItem: any = {
       id: `custom-${Date.now()}`,
       userId: currentUserId,
-      title: title || (listingType === 'rental' ? 'Spacious Halifax Apartment' : 'Cozy Student Sublet'),
+      title: title || (listingType === 'rental' ? 'Spacious Halifax Apartment' : listingType === 'sublet' ? 'Cozy Student Sublet' : `${currentUserName}'s Roommate Search`),
       neighborhood,
       address: address || 'South End, Halifax, NS',
-      bedrooms: Number(bedrooms),
-      bathrooms: Number(bathrooms),
+      bedrooms: parsedBedrooms,
+      bathrooms: parsedBathrooms,
       propertyType: 'Apartment',
       images: finalImages,
       description: description || 'Beautiful, clean unit in great Halifax location.'
     };
 
     if (listingType === 'rental') {
-      createdItem.price = Number(price);
-      createdItem.heatingType = heatingType;
+      createdItem.price = parsedPrice;
+      createdItem.heatingType = heatingType || 'Heat & Hot Water Included';
       createdItem.estimatedWinterUtilities = 65;
-      createdItem.winterParking = winterParking;
+      createdItem.winterParking = winterParking || 'Assigned Driveway';
       createdItem.leaseType = 'Periodic (Year-to-Year, Rent Cap Protected)';
       createdItem.petPolicy = 'Dogs & Cats Welcome';
       createdItem.transitTimes = {
@@ -137,13 +141,13 @@ export const PostListingModal: React.FC<PostListingModalProps> = ({
         avatar: currentUserAvatar
       };
     } else if (listingType === 'sublet') {
-      createdItem.subletPrice = Number(price);
-      createdItem.originalRent = Math.round(Number(price) * 1.15);
+      createdItem.subletPrice = parsedPrice;
+      createdItem.originalRent = Math.round(parsedPrice * 1.15);
       createdItem.term = 'Summer (May 1 - Aug 31)';
       createdItem.startDate = 'May 1, 2026';
       createdItem.endDate = 'August 31, 2026';
-      createdItem.bedroomsTotal = Number(bedrooms);
-      createdItem.bathroomsTotal = Number(bathrooms);
+      createdItem.bedroomsTotal = parsedBedrooms;
+      createdItem.bathroomsTotal = parsedBathrooms;
       createdItem.subletScope = 'Entire Apartment';
       createdItem.isFurnished = true;
       createdItem.furnitureIncluded = ['Bed & Mattress', 'Study Desk', 'Sofa'];
@@ -165,10 +169,33 @@ export const PostListingModal: React.FC<PostListingModalProps> = ({
         major: 'Computer Science',
         avatar: currentUserAvatar
       };
+    } else if (listingType === 'roommate') {
+      createdItem.name = currentUserName;
+      createdItem.age = 21;
+      createdItem.gender = 'Co-ed Welcome';
+      createdItem.lookingFor = 'Room to Rent';
+      createdItem.targetBudget = parsedPrice;
+      createdItem.targetNeighborhoods = [neighborhood];
+      createdItem.targetMoveIn = 'Immediate / Flexible';
+      createdItem.university = user?.universityAffiliation || 'Dalhousie';
+      createdItem.programOrJob = 'Student / Professional';
+      createdItem.isStudentVerified = true;
+      createdItem.hasFastPassVerified = false;
+      createdItem.avatar = currentUserAvatar;
+      createdItem.bio = description || 'Friendly, considerate roommate looking for housing in Halifax.';
+      createdItem.lifestyle = {
+        cleanliness: 'Neat & Tidy',
+        sleepSchedule: 'Flexible',
+        socialGuests: 'Quiet & Studious',
+        dietary: 'No Restrictions',
+        substances: 'Non-Smoker / Non-Drinker',
+        petComfort: 'Loves Pets',
+        preferredHousehold: 'Co-ed Welcome'
+      };
     }
 
-    // Attempt Supabase insert if connected
-    if (supabase && user) {
+    // Attempt Supabase insert if connected (for rental/sublet)
+    if (supabase && user && listingType !== 'roommate') {
       try {
         await supabase.from('listings').insert({
           user_id: user.id,
@@ -177,8 +204,8 @@ export const PostListingModal: React.FC<PostListingModalProps> = ({
           neighborhood: createdItem.neighborhood,
           address: createdItem.address,
           price: createdItem.price || createdItem.subletPrice,
-          bedrooms: createdItem.bedrooms || createdItem.bedroomsTotal,
-          bathrooms: createdItem.bathrooms || createdItem.bathroomsTotal,
+          bedrooms: createdItem.bedrooms || createdItem.bedroomsTotal || 1,
+          bathrooms: createdItem.bathrooms || createdItem.bathroomsTotal || 1,
           heating_type: createdItem.heatingType || 'Heat & Hot Water Included',
           winter_parking: createdItem.winterParking || 'Assigned Driveway',
           description: createdItem.description,

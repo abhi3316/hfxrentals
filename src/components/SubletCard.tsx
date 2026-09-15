@@ -26,17 +26,17 @@ export const SubletCard: React.FC<SubletCardProps> = ({
   onDeleteListing,
   isOwner = false
 }) => {
-  const discountPercent = Math.round(
-    ((sublet.originalRent - sublet.subletPrice) / sublet.originalRent) * 100
-  );
+  const discountPercent = (sublet.originalRent && sublet.subletPrice && sublet.originalRent > sublet.subletPrice)
+    ? Math.round(((sublet.originalRent - sublet.subletPrice) / sublet.originalRent) * 100)
+    : 0;
 
   return (
     <article className={`listing-card ${sublet.isUrgentBoost ? 'featured-boost' : ''}`}>
       {/* Media Header */}
       <div className="card-media-wrapper" onClick={() => onSelectSublet(sublet)}>
         <img
-          src={sublet.images[0]}
-          alt={sublet.title}
+          src={sublet.images?.[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80'}
+          alt={sublet.title || 'Student Sublet'}
           className="card-image"
           loading="lazy"
         />
@@ -52,7 +52,7 @@ export const SubletCard: React.FC<SubletCardProps> = ({
             {sublet.isStudentVerified && (
               <span className="badge badge-teal">
                 <GraduationCap size={12} />
-                {sublet.studentAffiliation} Student
+                {sublet.studentAffiliation || 'Student'}
               </span>
             )}
             {isOwner && (
@@ -107,7 +107,7 @@ export const SubletCard: React.FC<SubletCardProps> = ({
         </div>
 
         <div className="card-price-overlay">
-          <span className="card-price-amount">${sublet.subletPrice.toLocaleString()}</span>
+          <span className="card-price-amount">${(sublet.subletPrice || 0).toLocaleString()}</span>
           <span className="card-price-period">CAD / month</span>
           {discountPercent > 0 && (
             <span className="sublet-discount-badge">
@@ -121,30 +121,30 @@ export const SubletCard: React.FC<SubletCardProps> = ({
       <div className="card-body">
         <div className="card-location">
           <MapPin size={13} />
-          <span>{sublet.neighborhood} • {sublet.subletScope}</span>
+          <span>{sublet.neighborhood || 'Halifax'} • {sublet.subletScope || 'Entire Apartment'}</span>
         </div>
 
         <h3 className="card-title" onClick={() => onSelectSublet(sublet)} style={{ cursor: 'pointer' }}>
-          {sublet.title}
+          {sublet.title || 'Student Sublet'}
         </h3>
 
         {/* Term Banner */}
         <div className="sublet-term-banner">
           <Calendar size={14} />
-          <span>Term: {sublet.term} ({sublet.startDate} to {sublet.endDate})</span>
+          <span>Term: {sublet.term || 'Summer'} ({sublet.startDate || 'Immediate'} to {sublet.endDate || 'Flexible'})</span>
         </div>
 
         {/* Furnished items checklist */}
         {sublet.isFurnished && (
           <div className="furnished-items-list">
-            {sublet.furnitureIncluded.slice(0, 3).map((item, idx) => (
+            {(sublet.furnitureIncluded || []).slice(0, 3).map((item, idx) => (
               <span key={idx} className="furnished-item-tag">
                 <Check size={11} style={{ display: 'inline', marginRight: 3, color: 'var(--teal-400)' }} />
                 {item}
               </span>
             ))}
-            {sublet.furnitureIncluded.length > 3 && (
-              <span className="furnished-item-tag">+{sublet.furnitureIncluded.length - 3} more</span>
+            {(sublet.furnitureIncluded || []).length > 3 && (
+              <span className="furnished-item-tag">+{(sublet.furnitureIncluded || []).length - 3} more</span>
             )}
           </div>
         )}
@@ -153,10 +153,12 @@ export const SubletCard: React.FC<SubletCardProps> = ({
           <div className="hfx-chip-row">
             <span className="hfx-chip-key">Rent Comparison:</span>
             <span className="hfx-chip-val">
-              <span style={{ textDecoration: 'line-through', color: 'var(--slate-500)', marginRight: 6 }}>
-                ${sublet.originalRent}
-              </span>
-              <strong style={{ color: 'var(--teal-400)' }}>${sublet.subletPrice}</strong>
+              {sublet.originalRent && (
+                <span style={{ textDecoration: 'line-through', color: 'var(--slate-500)', marginRight: 6 }}>
+                  ${sublet.originalRent}
+                </span>
+              )}
+              <strong style={{ color: 'var(--teal-400)' }}>${sublet.subletPrice || 0}</strong>
             </span>
           </div>
 
@@ -172,13 +174,13 @@ export const SubletCard: React.FC<SubletCardProps> = ({
         <div className="card-footer" style={{ gap: 8 }}>
           <div className="lister-info" style={{ flex: 1 }}>
             <img
-              src={sublet.lister.avatar}
-              alt={sublet.lister.name}
+              src={sublet.lister?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'}
+              alt={sublet.lister?.name || 'Student Lister'}
               className="lister-avatar"
             />
             <div>
-              <div className="lister-name">{sublet.lister.name}</div>
-              <div className="lister-sub">{sublet.lister.major || sublet.lister.university}</div>
+              <div className="lister-name">{sublet.lister?.name || 'Student Lister'}</div>
+              <div className="lister-sub">{sublet.lister?.major || sublet.lister?.university || 'Student'}</div>
             </div>
           </div>
 

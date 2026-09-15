@@ -48,7 +48,7 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
   const [petPolicy, setPetPolicy] = useState(
     isRental ? (listing as RentalListing).petPolicy : 'Dogs & Cats Welcome'
   );
-  const [imageUrl, setImageUrl] = useState(listing.images[0] || '');
+  const [imageUrl, setImageUrl] = useState(listing.images?.[0] || '');
   const [description, setDescription] = useState(listing.description);
 
   // Delete confirmation state
