@@ -933,3 +933,22 @@
     width: 180px;
   }
 }
+
+/* Address Autocomplete Dropdown */
+.address-suggestions-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.address-suggestions-dropdown::-webkit-scrollbar-track {
+  background: rgba(7, 19, 33, 0.6);
+  border-radius: 4px;
+}
+
+.address-suggestions-dropdown::-webkit-scrollbar-thumb {
+  background: rgba(0, 168, 150, 0.4);
+  border-radius: 4px;
+}
+
+.address-suggestions-dropdown::-webkit-scrollbar-thumb:hover {
+  background: var(--emerald-400);
+}

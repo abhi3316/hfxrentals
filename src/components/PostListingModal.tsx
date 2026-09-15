@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { compressImage, type OptimizedImage } from '../utils/imageOptimizer';
 import { uploadMultipleListingPhotos } from '../utils/storage';
+import { AddressAutocomplete } from './AddressAutocomplete';
 import { X, Check, Sparkles, ArrowRight, ArrowLeft, Camera, UploadCloud, Loader2 } from 'lucide-react';
 import '../styles/modal.css';
 
@@ -318,12 +319,22 @@ export const PostListingModal: React.FC<PostListingModalProps> = ({
               </div>
 
               <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label className="filter-label">Street Address (approximate OK)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Coburg Road, Halifax"
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label className="filter-label">Street Address</label>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--emerald-400)', fontWeight: 600 }}>
+                    ⚡ Real-time Halifax autofill
+                  </span>
+                </div>
+                <AddressAutocomplete
                   value={address}
-                  onChange={(e) => setAddress(e.target.value)}
+                  onChange={setAddress}
+                  onSelectSuggestion={(s) => {
+                    setAddress(s.streetAddress);
+                    if (s.neighborhood) {
+                      setNeighborhood(s.neighborhood);
+                    }
+                  }}
+                  placeholder="e.g. 1459 Robie St or Coburg Rd"
                 />
               </div>
             </div>

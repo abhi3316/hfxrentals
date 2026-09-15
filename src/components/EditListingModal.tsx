@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { RentalListing, SubletListing, HalifaxNeighborhood, HeatingType, WinterParkingStatus, LeaseType } from '../types';
 import { HALIFAX_NEIGHBORHOODS } from '../data/mockData';
 import { X, Save, Trash2, AlertTriangle } from 'lucide-react';
+import { AddressAutocomplete } from './AddressAutocomplete';
 import '../styles/modal.css';
 
 interface EditListingModalProps {
@@ -203,16 +204,25 @@ export const EditListingModal: React.FC<EditListingModalProps> = ({
           </div>
 
           <div className="form-group" style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-300)', display: 'block', marginBottom: 6 }}>
-              Street Address
-            </label>
-            <input
-              type="text"
-              required
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-300)' }}>
+                Street Address
+              </label>
+              <span style={{ fontSize: '0.72rem', color: 'var(--emerald-400)', fontWeight: 600 }}>
+                ⚡ Real-time Halifax autofill
+              </span>
+            </div>
+            <AddressAutocomplete
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
+              onChange={setAddress}
+              onSelectSuggestion={(s) => {
+                setAddress(s.streetAddress);
+                if (s.neighborhood) {
+                  setNeighborhood(s.neighborhood);
+                }
+              }}
               placeholder="e.g. 6100 Coburg Road, Halifax, NS"
-              style={{ width: '100%', padding: '10px 14px', background: 'var(--navy-900)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', color: '#fff' }}
+              required
             />
           </div>
 

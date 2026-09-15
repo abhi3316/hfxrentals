@@ -79,8 +79,10 @@ hfxrentals/
     │   ├── ChatModal.tsx        # Real-time tenant-to-landlord chat with quick Halifax prompts
     │   ├── InsuranceWidget.tsx  # Tenant insurance affiliate revenue banner
     │   ├── ScamShieldBanner.tsx # Anti-fraud hub & remote inspection bookings
+    │   ├── AddressAutocomplete.tsx # Uber-style Halifax address autocomplete with auto-neighborhood detection
     │   └── FavoritesDrawer.tsx  # Slide-over saved listings manager
     ├── utils/
+    │   ├── addressService.ts    # Instant HRM street cache & OpenStreetMap Nominatim geocoding
     │   ├── imageOptimizer.ts    # Client-side HTML5 Canvas auto-compression (15MB -> 180KB WebP)
     │   └── storage.ts           # Dual-mode photo storage (Supabase 'listing-photos' bucket + fallback)
     └── styles/
@@ -106,6 +108,7 @@ hfxrentals/
 | Utility / Component | Current / Recommended Tool | AWS Native Equivalent | Migration Difficulty | Migration Notes & Friction |
 | :--- | :--- | :--- | :--- | :--- |
 | **Frontend Hosting** | Vercel (or local Vite) | **AWS Amplify** or **S3 + CloudFront** | 🟢 **Trivial (< 15 mins)** | `amplify.yml` and `deploy-aws-s3.sh` already built in the repo. Zero code changes required. |
+| **Street Address Autocomplete & Geo-Detection** | `AddressAutocomplete.tsx` + `addressService.ts` (OSM Nominatim + HRM Cache) | **Amazon Location Service (Place Indexes)** | 🟢 **Low (1-2 hours)** | Replace the `fetch(nominatimUrl)` call in `addressService.ts` with AWS SDK `@aws-sdk/client-location` `SearchPlaceIndexForSuggestionsCommand`. Amazon Location Service provides high-accuracy autocomplete for Canadian addresses via Esri or HERE data providers. |
 | **Account Profile & Username Updates** | `AuthContext` + Supabase `profiles` / User Metadata | **AWS Cognito User Pools (Standard & Custom Attributes)** | 🟢 **Low (1-2 hours)** | In Cognito, set `email` as immutable (`Mutable: false`). For unique usernames, use Cognito `preferred_username` alias or an Amazon RDS PostgreSQL unique index (`CREATE UNIQUE INDEX idx_profiles_unique_full_name ON profiles (LOWER(TRIM(full_name)))`) which works identically. In DynamoDB, use `ConditionExpression: attribute_not_exists(username)` on a dedicated username partition key. |
 | **In-App Tenant-Landlord Chat** | Supabase `messages` Table + WebSockets (with localStorage fallback) | **AWS AppSync (GraphQL Subscriptions)** or **API Gateway WebSocket + DynamoDB** | 🟡 **Medium (3-4 hours)** | AppSync handles managed WebSockets. `ChatModal.tsx` UI stays identical; only the subscription hook switches to Amplify Data/AppSync client. |
 | **Listing CRUD (Edit & Delete)** | Supabase PostgreSQL `UPDATE` / `DELETE` | **Amazon RDS for PostgreSQL** or **Aurora Serverless** | 🟢 **Low (1 hour)** | 100% SQL compatible. `supabase-schema.sql` imports directly into Amazon RDS with zero syntax modifications. |
