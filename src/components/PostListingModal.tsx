@@ -197,7 +197,7 @@ export const PostListingModal: React.FC<PostListingModalProps> = ({
     // Attempt Supabase insert if connected (for rental/sublet)
     if (supabase && user && listingType !== 'roommate') {
       try {
-        await supabase.from('listings').insert({
+        const { data: inserted, error: insertError } = await supabase.from('listings').insert({
           user_id: user.id,
           category: listingType === 'sublet' ? 'sublet' : 'rental',
           title: createdItem.title,
@@ -210,7 +210,14 @@ export const PostListingModal: React.FC<PostListingModalProps> = ({
           winter_parking: createdItem.winterParking || 'Assigned Driveway',
           description: createdItem.description,
           images: createdItem.images
-        });
+        }).select().single();
+
+        if (inserted?.id) {
+          createdItem.id = inserted.id;
+        }
+        if (insertError) {
+          console.warn('Supabase insert warning:', insertError.message);
+        }
       } catch (err) {
         console.warn('Could not save listing to Supabase, saving to state', err);
       }

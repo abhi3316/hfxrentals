@@ -131,7 +131,11 @@ export const deleteListingPhotos = async (imageUrls: string[]): Promise<boolean>
       return false;
     }
 
-    console.log('[Storage] Successfully purged photos from bucket:', data);
+    if (Array.isArray(data) && data.length === 0) {
+      console.warn('[Storage] Warning: Supabase Storage returned 0 removed files. Ensure the "Allow delete for listing-photos" policy is enabled on storage.objects in Supabase.');
+    } else {
+      console.log('[Storage] Successfully purged photos from bucket:', data);
+    }
     return true;
   } catch (err) {
     console.warn('[Storage] Error deleting listing photos from storage:', err);

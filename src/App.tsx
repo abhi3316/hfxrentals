@@ -471,18 +471,24 @@ export const App: React.FC = () => {
     // 1. Gather all image URLs from current React state
     const targetListing = rentals.find(r => r.id === listingId) || sublets.find(s => s.id === listingId);
     let imagesToDelete: string[] = targetListing?.images ? [...targetListing.images] : [];
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(listingId);
 
     // 2. Also check Supabase directly in case the listing has images not cached in local state
     if (supabase) {
       try {
-        const { data: dbItem } = await supabase
-          .from('listings')
-          .select('images')
-          .eq('id', listingId)
-          .maybeSingle();
-
-        if (dbItem?.images && Array.isArray(dbItem.images)) {
-          imagesToDelete = Array.from(new Set([...imagesToDelete, ...dbItem.images]));
+        let query = supabase.from('listings').select('images');
+        if (isUUID) {
+          query = query.eq('id', listingId);
+        } else if (targetListing?.title && user?.id) {
+          query = query.eq('user_id', user.id).eq('title', targetListing.title);
+        }
+        const { data: dbItems } = await query;
+        if (dbItems && Array.isArray(dbItems)) {
+          for (const item of dbItems) {
+            if (item?.images && Array.isArray(item.images)) {
+              imagesToDelete = Array.from(new Set([...imagesToDelete, ...item.images]));
+            }
+          }
         }
       } catch (err) {
         console.warn('Could not query listing images before delete', err);
@@ -509,7 +515,11 @@ export const App: React.FC = () => {
     // 5. Delete listing row from Supabase database
     if (supabase) {
       try {
-        await supabase.from('listings').delete().eq('id', listingId);
+        if (isUUID) {
+          await supabase.from('listings').delete().eq('id', listingId);
+        } else if (targetListing?.title && user?.id) {
+          await supabase.from('listings').delete().eq('user_id', user.id).eq('title', targetListing.title);
+        }
       } catch (err) {
         console.warn('Could not delete in Supabase', err);
       }
