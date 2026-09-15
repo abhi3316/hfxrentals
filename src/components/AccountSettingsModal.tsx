@@ -14,17 +14,64 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
   onClose,
   onUsernameUpdated
 }) => {
-  const { user, updateUsername } = useAuth();
+  const { user, updateUsername, checkUsernameAvailable } = useAuth();
   const [username, setUsername] = useState(user?.name || '');
   const [isSaving, setIsSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  
+  // Real-time username availability validation
+  const [isCheckingAvail, setIsCheckingAvail] = useState(false);
+  const [availStatus, setAvailStatus] = useState<'idle' | 'same' | 'available' | 'taken' | 'invalid'>('same');
+  const [availMsg, setAvailMsg] = useState('');
 
   useEffect(() => {
     if (user?.name) {
       setUsername(user.name);
+      setAvailStatus('same');
     }
-  }, [user?.name]);
+  }, [user?.name, isOpen]);
+
+  // Debounced availability check
+  useEffect(() => {
+    const trimmed = username.trim();
+    if (!user) return;
+
+    if (!trimmed) {
+      setAvailStatus('invalid');
+      setAvailMsg('Username cannot be empty.');
+      return;
+    }
+
+    if (trimmed.length < 3) {
+      setAvailStatus('invalid');
+      setAvailMsg('Username must be at least 3 characters.');
+      return;
+    }
+
+    if (trimmed.toLowerCase() === user.name.toLowerCase()) {
+      setAvailStatus('same');
+      setAvailMsg('');
+      setErrorMsg('');
+      return;
+    }
+
+    setIsCheckingAvail(true);
+    const timer = setTimeout(async () => {
+      const res = await checkUsernameAvailable(trimmed);
+      setIsCheckingAvail(false);
+      if (res.available) {
+        setAvailStatus('available');
+        setAvailMsg(`"${trimmed}" is available!`);
+        setErrorMsg('');
+      } else {
+        setAvailStatus('taken');
+        setAvailMsg(res.error || `Username "${trimmed}" is already taken by another user.`);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [username, user]);
 
   if (!isOpen || !user) return null;
 
@@ -33,21 +80,30 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
     setErrorMsg('');
     setSuccessMsg('');
 
-    if (!username.trim()) {
+    const trimmed = username.trim();
+    if (!trimmed) {
       setErrorMsg('Username cannot be empty.');
       return;
     }
 
+    if (availStatus === 'taken') {
+      setErrorMsg(availMsg || 'This username is already taken. Please pick another one.');
+      return;
+    }
+
     setIsSaving(true);
-    const res = await updateUsername(username.trim());
+    const res = await updateUsername(trimmed);
     setIsSaving(false);
 
     if (res.error) {
       setErrorMsg(res.error);
+      setAvailStatus('taken');
+      setAvailMsg(res.error);
     } else {
-      setSuccessMsg(`Username successfully updated to "${username.trim()}"!`);
+      setSuccessMsg(`Username successfully updated to "${trimmed}"!`);
+      setAvailStatus('same');
       if (onUsernameUpdated) {
-        onUsernameUpdated(username.trim());
+        onUsernameUpdated(trimmed);
       }
       setTimeout(() => {
         setSuccessMsg('');
@@ -169,29 +225,66 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
 
           {/* Username / Display Name (Editable) */}
           <div style={{ marginBottom: 24 }}>
-            <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--slate-200)', display: 'block', marginBottom: 6 }}>
-              Public Display Name / Landlord Name
-            </label>
-            <input
-              type="text"
-              required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="e.g. Sarah Jenkins, Robert MacLeod"
-              style={{
-                width: '100%',
-                padding: '11px 14px',
-                background: 'var(--navy-900)',
-                border: '1px solid var(--glass-border)',
-                borderRadius: 'var(--radius-md)',
-                color: '#ffffff',
-                fontSize: '0.9rem',
-                outline: 'none',
-                transition: 'border-color var(--transition-fast)'
-              }}
-            />
-            <p style={{ fontSize: '0.74rem', color: 'var(--slate-400)', marginTop: 5, lineHeight: 1.4 }}>
-              ✨ This name is shown as the Landlord / Lister on all your property postings, sublets, and inside private tenant chats.
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--slate-200)' }}>
+                Public Display Name / Landlord Name
+              </label>
+              {isCheckingAvail && (
+                <span style={{ fontSize: '0.72rem', color: 'var(--teal-300)' }}>
+                  Checking availability...
+                </span>
+              )}
+            </div>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="e.g. Sarah Jenkins, Robert MacLeod"
+                style={{
+                  width: '100%',
+                  padding: '11px 14px',
+                  paddingRight: '36px',
+                  background: availStatus === 'taken' 
+                    ? 'rgba(239, 68, 68, 0.08)' 
+                    : availStatus === 'available' 
+                    ? 'rgba(0, 168, 150, 0.08)' 
+                    : 'var(--navy-900)',
+                  border: availStatus === 'taken'
+                    ? '1px solid #ef4444'
+                    : availStatus === 'available'
+                    ? '1px solid var(--teal-500)'
+                    : '1px solid var(--glass-border)',
+                  borderRadius: 'var(--radius-md)',
+                  color: '#ffffff',
+                  fontSize: '0.9rem',
+                  outline: 'none',
+                  transition: 'border-color var(--transition-fast), background-color var(--transition-fast)'
+                }}
+              />
+              <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }}>
+                {availStatus === 'available' && <CheckCircle2 size={16} color="var(--teal-400)" />}
+                {availStatus === 'taken' && <AlertCircle size={16} color="#ef4444" />}
+              </div>
+            </div>
+
+            {/* Live Availability Status Callout */}
+            {availStatus === 'taken' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#f87171', fontSize: '0.74rem', marginTop: 6, fontWeight: 600 }}>
+                <AlertCircle size={13} />
+                <span>{availMsg}</span>
+              </div>
+            )}
+            {availStatus === 'available' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--teal-300)', fontSize: '0.74rem', marginTop: 6, fontWeight: 600 }}>
+                <CheckCircle2 size={13} />
+                <span>{availMsg}</span>
+              </div>
+            )}
+
+            <p style={{ fontSize: '0.74rem', color: 'var(--slate-400)', marginTop: 6, lineHeight: 1.4 }}>
+              ✨ This name is shown as the Landlord / Lister on all your property postings, sublets, and inside private tenant chats. Usernames must be unique across the platform.
             </p>
           </div>
 
@@ -209,8 +302,15 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({
             <button
               type="submit"
               className="btn btn-primary"
-              disabled={isSaving || !username.trim()}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem' }}
+              disabled={isSaving || !username.trim() || availStatus === 'taken' || isCheckingAvail}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: '0.85rem',
+                opacity: (availStatus === 'taken' || isCheckingAvail) ? 0.6 : 1,
+                cursor: (availStatus === 'taken' || isCheckingAvail) ? 'not-allowed' : 'pointer'
+              }}
             >
               <Save size={15} />
               <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>

@@ -12,6 +12,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   loginAsDemo: (role: 'student' | 'landlord') => void;
   updateUsername: (newName: string) => Promise<{ error?: string }>;
+  checkUsernameAvailable: (newName: string) => Promise<{ available: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -207,7 +208,77 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(demoUser));
   };
 
-  const updateUsername = async (newName: string) => {
+  const checkUsernameAvailable = async (newName: string): Promise<{ available: boolean; error?: string }> => {
+    const trimmed = newName.trim();
+    if (!trimmed) {
+      return { available: false, error: 'Username cannot be blank' };
+    }
+    if (trimmed.length < 3) {
+      return { available: false, error: 'Username must be at least 3 characters' };
+    }
+    if (trimmed.length > 32) {
+      return { available: false, error: 'Username cannot exceed 32 characters' };
+    }
+
+    // If matches the active user's existing name, it's available for them
+    if (user && user.name.toLowerCase() === trimmed.toLowerCase()) {
+      return { available: true };
+    }
+
+    // 1. Check live Supabase database if configured
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .ilike('full_name', trimmed);
+
+        if (error) {
+          console.warn('Error checking username in Supabase', error);
+        } else if (data && data.length > 0) {
+          const takenByOther = data.some(p => p.id !== user?.id);
+          if (takenByOther) {
+            return {
+              available: false,
+              error: `Username "${trimmed}" is already taken by another account.`
+            };
+          }
+        }
+      } catch (err) {
+        console.warn('Supabase username check exception', err);
+      }
+    }
+
+    // 2. Check local mock database names
+    const existingLocalNames = [
+      'Liam Chen',
+      'Sarah MacDonald',
+      'Robert MacLeod',
+      'Maya Patel',
+      'Marcus Thompson',
+      'Chloe Cormier',
+      'Tariq Al-Mansoor',
+      'Elena Rostova',
+      'Heather Langille',
+      'David Ross',
+      'Michael Henderson'
+    ];
+
+    const isMockTaken = existingLocalNames.some(
+      n => n.toLowerCase() === trimmed.toLowerCase() && (!user || user.name.toLowerCase() !== n.toLowerCase())
+    );
+
+    if (isMockTaken) {
+      return {
+        available: false,
+        error: `Username "${trimmed}" is already taken. Please choose a different username.`
+      };
+    }
+
+    return { available: true };
+  };
+
+  const updateUsername = async (newName: string): Promise<{ error?: string }> => {
     const trimmed = newName.trim();
     if (!trimmed) {
       return { error: 'Username cannot be blank' };
@@ -216,26 +287,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { error: 'No user is currently signed in' };
     }
 
+    // If identical to current name, no-op
+    if (user.name === trimmed) {
+      return {};
+    }
+
+    // Enforce uniqueness check
+    const check = await checkUsernameAvailable(trimmed);
+    if (!check.available) {
+      return { error: check.error || 'Username is already taken' };
+    }
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ full_name: trimmed })
+          .eq('id', user.id);
+
+        if (profileError) {
+          // Check for PostgreSQL unique constraint code 23505
+          if (
+            profileError.code === '23505' ||
+            profileError.message?.includes('duplicate') ||
+            profileError.message?.includes('unique')
+          ) {
+            return { error: `Username "${trimmed}" is already taken. Please choose a unique name.` };
+          }
+          console.warn('Could not update profile in Supabase', profileError);
+          return { error: profileError.message || 'Failed to update username' };
+        }
+
+        await supabase.auth.updateUser({
+          data: { full_name: trimmed }
+        });
+      } catch (err: any) {
+        console.warn('Could not sync name update to Supabase', err);
+        return { error: err?.message || 'Database error occurred while updating username' };
+      }
+    }
+
     const updatedUser: AppUser = {
       ...user,
       name: trimmed
     };
     setUser(updatedUser);
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedUser));
-
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase.auth.updateUser({
-          data: { full_name: trimmed }
-        });
-        await supabase
-          .from('profiles')
-          .update({ full_name: trimmed })
-          .eq('id', user.id);
-      } catch (err: any) {
-        console.warn('Could not sync name update to Supabase', err);
-      }
-    }
 
     return {};
   };
@@ -251,7 +348,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginWithGoogle,
         logout,
         loginAsDemo,
-        updateUsername
+        updateUsername,
+        checkUsernameAvailable
       }}
     >
       {children}

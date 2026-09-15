@@ -18,6 +18,10 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- Enforce unique username/display name across profiles (case-insensitive)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_unique_full_name 
+  ON public.profiles (LOWER(TRIM(full_name)));
+
 -- Enable RLS on profiles
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
