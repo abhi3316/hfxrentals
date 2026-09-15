@@ -166,6 +166,12 @@ CREATE POLICY "Messages update policy"
   TO public, anon, authenticated
   USING (true);
 
+DROP POLICY IF EXISTS "Messages delete policy" ON public.messages;
+CREATE POLICY "Messages delete policy"
+  ON public.messages FOR DELETE
+  TO public, anon, authenticated
+  USING (true);
+
 -- Enable real-time broadcast for messages
 DO $$
 BEGIN
@@ -214,13 +220,22 @@ CREATE POLICY "Allow delete for listing-photos"
     bucket_id = 'listing-photos'
   );
 
--- 7. Automatic Database Trigger to purge photos from storage.objects on listing deletion
-CREATE OR REPLACE FUNCTION public.delete_listing_storage_photos()
+-- 7. Automatic Database Trigger to cascade purge messages, viewings, and photos on listing deletion
+CREATE OR REPLACE FUNCTION public.delete_listing_cascade_data()
 RETURNS TRIGGER AS $$
 DECLARE
   img_url TEXT;
   file_path TEXT;
 BEGIN
+  -- 1. Purge all messages belonging to this listing
+  DELETE FROM public.messages 
+  WHERE listing_id = OLD.id::text;
+
+  -- 2. Purge all viewings belonging to this listing
+  DELETE FROM public.viewings 
+  WHERE listing_id = OLD.id;
+
+  -- 3. Purge all photos from storage.objects
   IF OLD.images IS NOT NULL THEN
     FOREACH img_url IN ARRAY OLD.images LOOP
       IF img_url LIKE '%/listing-photos/%' THEN
@@ -235,7 +250,10 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP TRIGGER IF EXISTS trg_delete_listing_photos ON public.listings;
-CREATE TRIGGER trg_delete_listing_photos
+DROP TRIGGER IF EXISTS trg_delete_listing_cascade ON public.listings;
+
+CREATE TRIGGER trg_delete_listing_cascade
 BEFORE DELETE ON public.listings
 FOR EACH ROW
-EXECUTE FUNCTION public.delete_listing_storage_photos();
+EXECUTE FUNCTION public.delete_listing_cascade_data();
+

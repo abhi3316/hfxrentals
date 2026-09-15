@@ -524,6 +524,20 @@ export const App: React.FC = () => {
         console.warn('Could not delete in Supabase', err);
       }
     }
+
+    // 6. Delete all messages for this listing from Supabase database
+    if (supabase) {
+      try {
+        await supabase.from('messages').delete().eq('listing_id', String(listingId));
+      } catch (err) {
+        console.warn('Could not delete messages in Supabase', err);
+      }
+    }
+
+    // 7. Remove local message cache from localStorage
+    try {
+      localStorage.removeItem(`hfx_private_msgs_${listingId}`);
+    } catch {}
   };
 
   // Load sample demo data on demand
