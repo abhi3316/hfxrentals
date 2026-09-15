@@ -32,9 +32,9 @@
    * Verification products: Fast-Pass™ ($19) and remote physical inspections ($69).
 8. **Client-Side Image Compression & Property Photo Storage**:
    * Auto-compression in browser via HTML5 Canvas (`src/utils/imageOptimizer.ts`): downscales 12-15MB smartphone photos to ~150-250KB WebP prior to network transmission, slashing bandwidth and storage costs by 95%.
-   * Multi-photo uploader in `PostListingModal.tsx` (drag & drop, up to 8 photos, Cover Photo badge, individual remove, live compression stats).
-   * Dual-mode storage engine (`src/utils/storage.ts`): uploads to Supabase Storage `listing-photos` public bucket if available, with graceful local fallback so offline/demo modes never fail.
-   * Supabase Storage SQL schema and RLS policies included in `supabase-schema.sql`.
+   * Multi-photo uploader in `PostListingModal.tsx` (drag & drop, up to 8 photos, Cover Photo badge, individual remove, live compression stats, and returns generated database UUID via `.select().single()`).
+   * Dual-mode storage engine (`src/utils/storage.ts`): uploads to Supabase Storage `listing-photos` public bucket if available, with graceful local fallback so offline/demo modes never fail. Automatically deletes photos from bucket on listing removal.
+   * Supabase Storage SQL schema, delete RLS policies, and automatic PostgreSQL trigger `trg_delete_listing_photos` included in `supabase-schema.sql`.
 
 ## Tech Stack & Architecture
 * **Frontend**: React 19 + TypeScript + Vite.
