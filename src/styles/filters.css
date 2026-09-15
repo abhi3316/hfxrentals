@@ -1,0 +1,162 @@
+/* =========================================================
+   Filter Bar Styles - Halifax-Specific Filters
+   ========================================================= */
+
+.filter-bar-container {
+  background: var(--navy-850);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  margin-bottom: 28px;
+  box-shadow: var(--shadow-md);
+  position: relative;
+  z-index: 10;
+}
+
+.filters-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 150px;
+}
+
+.filter-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--teal-400);
+}
+
+.filter-select {
+  width: 100%;
+  font-size: 0.88rem;
+  padding: 9px 12px;
+  background: var(--navy-800);
+  color: var(--slate-100);
+  cursor: pointer;
+}
+
+.filter-select:hover {
+  background: var(--navy-700);
+}
+
+/* Local Halifax Toggle Pills */
+.halifax-toggles {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 14px;
+  margin-top: 14px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.toggle-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--navy-800);
+  border: 1px solid var(--glass-border);
+  color: var(--slate-300);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.toggle-pill:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.toggle-pill.active {
+  background: rgba(0, 168, 150, 0.2);
+  color: var(--teal-400);
+  border-color: var(--teal-500);
+  box-shadow: 0 0 10px rgba(0, 168, 150, 0.2);
+}
+
+.toggle-pill.amber-active.active {
+  background: rgba(244, 162, 97, 0.2);
+  color: var(--amber-500);
+  border-color: var(--amber-500);
+  box-shadow: 0 0 10px rgba(244, 162, 97, 0.2);
+}
+
+/* Reset / Clear Filters */
+.filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.clear-filters-btn {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--slate-400);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast);
+}
+
+.clear-filters-btn:hover {
+  color: var(--coral-500);
+}
+
+.results-count-badge {
+  font-size: 0.82rem;
+  color: var(--slate-300);
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+}
+
+/* Campus Commute Special Filter */
+.campus-commute-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(2, 128, 144, 0.12);
+  border: 1px solid rgba(2, 128, 144, 0.25);
+  border-radius: var(--radius-md);
+  padding: 8px 14px;
+}
+
+.campus-slider-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.campus-slider {
+  accent-color: var(--teal-500);
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .filters-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .filter-actions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: space-between;
+    margin-top: 10px;
+  }
+}

@@ -1,0 +1,243 @@
+/* =========================================================
+   Monetization & Trust Widgets Styles
+   ========================================================= */
+
+/* Tenant Insurance Affiliate Banner */
+.insurance-banner {
+  background: linear-gradient(135deg, rgba(2, 128, 144, 0.2), rgba(11, 34, 57, 0.9));
+  border: 1px solid rgba(0, 168, 150, 0.35);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  margin-bottom: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.insurance-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.insurance-icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: rgba(0, 168, 150, 0.2);
+  border: 1px solid rgba(0, 168, 150, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--teal-400);
+  flex-shrink: 0;
+}
+
+.insurance-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 4px;
+}
+
+.insurance-desc {
+  font-size: 0.85rem;
+  color: var(--slate-300);
+  max-width: 580px;
+}
+
+.insurance-btn {
+  white-space: nowrap;
+  padding: 10px 20px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  background: var(--teal-500);
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all var(--transition-fast);
+}
+
+.insurance-btn:hover {
+  background: var(--teal-400);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-teal);
+}
+
+/* Scam Shield & Remote Inspection Section */
+.scam-shield-page {
+  padding: 20px 0 60px 0;
+}
+
+.scam-hero-card {
+  background: linear-gradient(135deg, rgba(17, 34, 57, 0.95), rgba(7, 19, 33, 0.9));
+  border: 1px solid rgba(0, 168, 150, 0.3);
+  border-radius: var(--radius-lg);
+  padding: 40px 32px;
+  text-align: center;
+  margin-bottom: 40px;
+  position: relative;
+  overflow: hidden;
+}
+
+.scam-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.scam-hero-title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  margin-bottom: 14px;
+  color: #ffffff;
+}
+
+.scam-hero-desc {
+  font-size: 1.05rem;
+  color: var(--slate-300);
+  max-width: 700px;
+  margin: 0 auto 28px auto;
+  line-height: 1.6;
+}
+
+.scam-services-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+.scam-service-card {
+  background: var(--navy-850);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  transition: all var(--transition-smooth);
+}
+
+.scam-service-card:hover {
+  border-color: var(--teal-400);
+  transform: translateY(-4px);
+}
+
+.scam-service-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md);
+  background: rgba(2, 128, 144, 0.15);
+  border: 1px solid rgba(2, 128, 144, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--teal-400);
+  margin-bottom: 18px;
+}
+
+.scam-service-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 8px;
+}
+
+.scam-service-price {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--amber-500);
+  font-family: var(--font-heading);
+  margin-bottom: 12px;
+}
+
+.scam-service-features {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex: 1;
+}
+
+.scam-service-features li {
+  font-size: 0.85rem;
+  color: var(--slate-300);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scam-service-features li::before {
+  content: "✓";
+  color: var(--teal-400);
+  font-weight: bold;
+}
+
+/* Local Red Flags Guide */
+.red-flags-card {
+  background: var(--navy-850);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+}
+
+.red-flags-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #f87171;
+}
+
+.red-flags-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.red-flag-item {
+  background: rgba(239, 68, 68, 0.06);
+  border-left: 3px solid #f87171;
+  padding: 14px 16px;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.red-flag-heading {
+  font-weight: 700;
+  color: #ffffff;
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+}
+
+.red-flag-desc {
+  font-size: 0.82rem;
+  color: var(--slate-300);
+}
+
+@media (max-width: 900px) {
+  .insurance-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .scam-services-grid {
+    grid-template-columns: 1fr;
+  }
+  .red-flags-grid {
+    grid-template-columns: 1fr;
+  }
+}
