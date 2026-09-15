@@ -63,6 +63,7 @@ export interface ViewingSlot {
 
 export interface RentalListing {
   id: string;
+  userId?: string;
   title: string;
   neighborhood: HalifaxNeighborhood;
   address: string;
@@ -100,6 +101,7 @@ export type SubletTerm = 'Summer (May 1 - Aug 31)' | 'Fall (Sept 1 - Dec 31)' | 
 
 export interface SubletListing {
   id: string;
+  userId?: string;
   title: string;
   neighborhood: HalifaxNeighborhood;
   address: string;
@@ -176,4 +178,17 @@ export interface FilterState {
   // Roommate specific
   roommateLookingFor: string;
   genderPref: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  listingId: string;
+  tenantId: string;
+  tenantName: string;
+  senderId: string;
+  senderName: string;
+  receiverId?: string;
+  content: string;
+  createdAt: string;
+  isRead?: boolean;
 }

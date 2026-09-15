@@ -1,6 +1,6 @@
 import React from 'react';
 import type { SubletListing } from '../types';
-import { Heart, MapPin, Calendar, Check, GraduationCap, Sparkles } from 'lucide-react';
+import { Heart, MapPin, Calendar, Check, GraduationCap, Sparkles, MessageCircle, Edit3, Trash2 } from 'lucide-react';
 import '../styles/listings.css';
 
 interface SubletCardProps {
@@ -9,6 +9,10 @@ interface SubletCardProps {
   onToggleFavorite: (id: string) => void;
   onSelectSublet: (sublet: SubletListing) => void;
   onScheduleViewing: (sublet: SubletListing) => void;
+  onOpenChat?: (sublet: SubletListing) => void;
+  onEditListing?: (sublet: SubletListing) => void;
+  onDeleteListing?: (listingId: string) => void;
+  isOwner?: boolean;
 }
 
 export const SubletCard: React.FC<SubletCardProps> = ({
@@ -16,7 +20,11 @@ export const SubletCard: React.FC<SubletCardProps> = ({
   isFavorited,
   onToggleFavorite,
   onSelectSublet,
-  onScheduleViewing
+  onScheduleViewing,
+  onOpenChat,
+  onEditListing,
+  onDeleteListing,
+  isOwner = false
 }) => {
   const discountPercent = Math.round(
     ((sublet.originalRent - sublet.subletPrice) / sublet.originalRent) * 100
@@ -47,18 +55,55 @@ export const SubletCard: React.FC<SubletCardProps> = ({
                 {sublet.studentAffiliation} Student
               </span>
             )}
+            {isOwner && (
+              <span className="badge badge-amber" style={{ fontSize: '0.72rem' }}>
+                Your Sublet
+              </span>
+            )}
           </div>
 
-          <button
-            className={`card-fav-btn ${isFavorited ? 'is-favorited' : ''}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleFavorite(sublet.id);
-            }}
-            aria-label={isFavorited ? 'Remove from saved' : 'Save sublet'}
-          >
-            <Heart size={18} fill={isFavorited ? 'currentColor' : 'none'} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {isOwner && onEditListing && (
+              <button
+                className="card-fav-btn"
+                style={{ background: 'rgba(7, 19, 33, 0.85)', color: 'var(--amber-400)' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditListing(sublet);
+                }}
+                title="Edit this sublet"
+                aria-label="Edit sublet"
+              >
+                <Edit3 size={16} />
+              </button>
+            )}
+
+            {isOwner && onDeleteListing && (
+              <button
+                className="card-fav-btn"
+                style={{ background: 'rgba(7, 19, 33, 0.85)', color: '#ef4444' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteListing(sublet.id);
+                }}
+                title="Delete this sublet"
+                aria-label="Delete sublet"
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
+
+            <button
+              className={`card-fav-btn ${isFavorited ? 'is-favorited' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFavorite(sublet.id);
+              }}
+              aria-label={isFavorited ? 'Remove from saved' : 'Save sublet'}
+            >
+              <Heart size={18} fill={isFavorited ? 'currentColor' : 'none'} />
+            </button>
+          </div>
         </div>
 
         <div className="card-price-overlay">
@@ -136,6 +181,21 @@ export const SubletCard: React.FC<SubletCardProps> = ({
               <div className="lister-sub">{sublet.lister.major || sublet.lister.university}</div>
             </div>
           </div>
+
+          {onOpenChat && (
+            <button
+              className="btn btn-secondary"
+              style={{ padding: '6px 10px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: 4 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenChat(sublet);
+              }}
+              title="Chat with student lister"
+            >
+              <MessageCircle size={14} color="var(--teal-400)" />
+              <span>Chat</span>
+            </button>
+          )}
 
           <button
             className="btn btn-primary"

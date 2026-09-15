@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { RentalListing, SubletListing } from '../types';
-import { X, MapPin, Flame, Bus, Send, CheckCircle2 } from 'lucide-react';
+import { X, MapPin, Flame, Bus, Send, CheckCircle2, MessageCircle, Edit3, Trash2 } from 'lucide-react';
 import '../styles/modal.css';
 
 interface ListingDetailModalProps {
@@ -8,13 +8,21 @@ interface ListingDetailModalProps {
   onClose: () => void;
   onOpenScamShield: () => void;
   onOpenViewingScheduler: (listing: RentalListing | SubletListing) => void;
+  onOpenChat: (listing: RentalListing | SubletListing) => void;
+  onEditListing?: (listing: RentalListing | SubletListing) => void;
+  onDeleteListing?: (listingId: string) => void;
+  isOwner?: boolean;
 }
 
 export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
   listing,
   onClose,
   onOpenScamShield,
-  onOpenViewingScheduler
+  onOpenViewingScheduler,
+  onOpenChat,
+  onEditListing,
+  onDeleteListing,
+  isOwner = false
 }) => {
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [inquiryName, setInquiryName] = useState('');
@@ -76,13 +84,58 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
             <div className="modal-price-box">
               <div className="modal-price-val">${price.toLocaleString()}</div>
               <div className="modal-price-sub">CAD / month</div>
+
               <button
                 className="btn btn-primary"
+                style={{ marginTop: 10, padding: '10px 14px', fontSize: '0.85rem', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                onClick={() => {
+                  onClose();
+                  onOpenChat(listing);
+                }}
+              >
+                <MessageCircle size={16} />
+                Chat with {isRental ? 'Landlord' : 'Lister'}
+              </button>
+
+              <button
+                className="btn btn-secondary"
                 style={{ marginTop: 8, padding: '8px 14px', fontSize: '0.82rem', width: '100%' }}
                 onClick={() => onOpenViewingScheduler(listing)}
               >
                 📅 Schedule Viewing
               </button>
+
+              {isOwner && onEditListing && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ padding: '6px 10px', fontSize: '0.78rem', color: 'var(--amber-400)', borderColor: 'rgba(244, 162, 97, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                    onClick={() => {
+                      onClose();
+                      onEditListing(listing);
+                    }}
+                  >
+                    <Edit3 size={13} />
+                    Edit
+                  </button>
+
+                  {onDeleteListing && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ padding: '6px 10px', fontSize: '0.78rem', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                      onClick={() => {
+                        onClose();
+                        onDeleteListing(listing.id);
+                      }}
+                    >
+                      <Trash2 size={13} />
+                      Delete
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -259,14 +312,28 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                   onChange={(e) => setInquiryMsg(e.target.value)}
                 />
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginTop: 6 }}>
                   <span style={{ fontSize: '0.78rem', color: 'var(--slate-400)' }}>
                     🔒 Direct connection • No spam guarantee
                   </span>
-                  <button type="submit" className="btn btn-primary">
-                    <Send size={15} />
-                    Send Inquiry
-                  </button>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem' }}
+                      onClick={() => {
+                        onClose();
+                        onOpenChat(listing);
+                      }}
+                    >
+                      <MessageCircle size={15} color="var(--teal-400)" />
+                      Open Live Chat
+                    </button>
+                    <button type="submit" className="btn btn-primary">
+                      <Send size={15} />
+                      Send Inquiry
+                    </button>
+                  </div>
                 </div>
               </form>
             )}

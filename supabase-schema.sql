@@ -125,3 +125,34 @@ CREATE POLICY "Viewings viewable by listing owner and renter"
 CREATE POLICY "Anyone authenticated can book a viewing"
   ON public.viewings FOR INSERT
   WITH CHECK (true);
+
+-- 5. Messages Table (Direct Tenant-to-Landlord In-App Chat)
+CREATE TABLE IF NOT EXISTS public.messages (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  listing_id UUID REFERENCES public.listings(id) ON DELETE CASCADE NOT NULL,
+  tenant_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  tenant_name TEXT NOT NULL,
+  sender_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  receiver_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  sender_name TEXT NOT NULL,
+  content TEXT NOT NULL,
+  is_read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view messages they sent or received"
+  ON public.messages FOR SELECT
+  USING (
+    auth.uid() = sender_id OR 
+    auth.uid() = receiver_id OR 
+    EXISTS (
+      SELECT 1 FROM public.listings 
+      WHERE listings.id = messages.listing_id AND listings.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Authenticated users can send messages"
+  ON public.messages FOR INSERT
+  WITH CHECK (auth.uid() = sender_id);

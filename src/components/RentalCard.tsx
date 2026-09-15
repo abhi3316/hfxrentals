@@ -1,6 +1,6 @@
 import React from 'react';
 import type { RentalListing } from '../types';
-import { Heart, MapPin, Bed, Bath, Flame, Car, ShieldCheck, Bus, Sparkles } from 'lucide-react';
+import { Heart, MapPin, Bed, Bath, Flame, Car, ShieldCheck, Bus, Sparkles, MessageCircle, Edit3, Trash2 } from 'lucide-react';
 import '../styles/listings.css';
 
 interface RentalCardProps {
@@ -9,6 +9,10 @@ interface RentalCardProps {
   onToggleFavorite: (id: string) => void;
   onSelectListing: (listing: RentalListing) => void;
   onScheduleViewing: (listing: RentalListing) => void;
+  onOpenChat?: (listing: RentalListing) => void;
+  onEditListing?: (listing: RentalListing) => void;
+  onDeleteListing?: (listingId: string) => void;
+  isOwner?: boolean;
 }
 
 export const RentalCard: React.FC<RentalCardProps> = ({
@@ -16,7 +20,11 @@ export const RentalCard: React.FC<RentalCardProps> = ({
   isFavorited,
   onToggleFavorite,
   onSelectListing,
-  onScheduleViewing
+  onScheduleViewing,
+  onOpenChat,
+  onEditListing,
+  onDeleteListing,
+  isOwner = false
 }) => {
   return (
     <article className={`listing-card ${listing.isFeaturedBoost ? 'featured-boost' : ''}`}>
@@ -43,18 +51,55 @@ export const RentalCard: React.FC<RentalCardProps> = ({
                 Verified Landlord
               </span>
             )}
+            {isOwner && (
+              <span className="badge badge-amber" style={{ fontSize: '0.72rem' }}>
+                Your Listing
+              </span>
+            )}
           </div>
 
-          <button
-            className={`card-fav-btn ${isFavorited ? 'is-favorited' : ''}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleFavorite(listing.id);
-            }}
-            aria-label={isFavorited ? 'Remove from saved' : 'Save listing'}
-          >
-            <Heart size={18} fill={isFavorited ? 'currentColor' : 'none'} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {isOwner && onEditListing && (
+              <button
+                className="card-fav-btn"
+                style={{ background: 'rgba(7, 19, 33, 0.85)', color: 'var(--amber-400)' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditListing(listing);
+                }}
+                title="Edit this listing"
+                aria-label="Edit listing"
+              >
+                <Edit3 size={16} />
+              </button>
+            )}
+
+            {isOwner && onDeleteListing && (
+              <button
+                className="card-fav-btn"
+                style={{ background: 'rgba(7, 19, 33, 0.85)', color: '#ef4444' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteListing(listing.id);
+                }}
+                title="Delete this listing"
+                aria-label="Delete listing"
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
+
+            <button
+              className={`card-fav-btn ${isFavorited ? 'is-favorited' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFavorite(listing.id);
+              }}
+              aria-label={isFavorited ? 'Remove from saved' : 'Save listing'}
+            >
+              <Heart size={18} fill={isFavorited ? 'currentColor' : 'none'} />
+            </button>
+          </div>
         </div>
 
         <div className="card-price-overlay">
@@ -134,6 +179,21 @@ export const RentalCard: React.FC<RentalCardProps> = ({
               <div className="lister-sub">{listing.landlord.responseRate} response</div>
             </div>
           </div>
+
+          {onOpenChat && (
+            <button
+              className="btn btn-secondary"
+              style={{ padding: '6px 10px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: 4 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenChat(listing);
+              }}
+              title="Chat with landlord"
+            >
+              <MessageCircle size={14} color="var(--teal-400)" />
+              <span>Chat</span>
+            </button>
+          )}
 
           <button
             className="btn btn-primary"

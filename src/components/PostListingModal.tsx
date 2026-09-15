@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { HALIFAX_NEIGHBORHOODS } from '../data/mockData';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 import { X, Check, Sparkles, ArrowRight, ArrowLeft } from 'lucide-react';
 import '../styles/modal.css';
 
@@ -12,6 +14,7 @@ export const PostListingModal: React.FC<PostListingModalProps> = ({
   onClose,
   onListingCreated
 }) => {
+  const { user } = useAuth();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [listingType, setListingType] = useState<'rental' | 'sublet' | 'roommate'>('rental');
   
@@ -27,14 +30,19 @@ export const PostListingModal: React.FC<PostListingModalProps> = ({
   const [description, setDescription] = useState('');
   const [boostSelected, setBoostSelected] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const createdItem = {
+    const currentUserId = user?.id || 'local-landlord';
+    const currentUserName = user?.name || 'You (Landlord)';
+    const currentUserEmail = user?.email || 'landlord@example.com';
+    const currentUserAvatar = user?.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80';
+
+    const createdItem: any = {
       id: `custom-${Date.now()}`,
+      userId: currentUserId,
       title: title || (listingType === 'rental' ? 'Spacious Halifax Apartment' : 'Cozy Student Sublet'),
       neighborhood,
       address: address || 'South End, Halifax, NS',
-      price: Number(price),
       bedrooms: Number(bedrooms),
       bathrooms: Number(bathrooms),
       propertyType: 'Apartment',
@@ -42,31 +50,86 @@ export const PostListingModal: React.FC<PostListingModalProps> = ({
         'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80',
         'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80'
       ],
-      heatingType,
-      estimatedWinterUtilities: 65,
-      winterParking,
-      leaseType: 'Periodic (Year-to-Year, Rent Cap Protected)',
-      petPolicy: 'Dogs & Cats Welcome',
-      transitTimes: {
+      description: description || 'Beautiful, clean unit in great Halifax location.'
+    };
+
+    if (listingType === 'rental') {
+      createdItem.price = Number(price);
+      createdItem.heatingType = heatingType;
+      createdItem.estimatedWinterUtilities = 65;
+      createdItem.winterParking = winterParking;
+      createdItem.leaseType = 'Periodic (Year-to-Year, Rent Cap Protected)';
+      createdItem.petPolicy = 'Dogs & Cats Welcome';
+      createdItem.transitTimes = {
         dalStudley: 12,
         dalSexton: 15,
         smu: 14,
         msvu: 24,
         nscc: 28
-      },
-      availableDate: 'Immediate',
-      isVerifiedLandlord: true,
-      isFeaturedBoost: boostSelected,
-      amenities: ['In-Building Laundry', 'Dishwasher', 'Parking'],
-      description: description || 'Beautiful, clean unit in great Halifax location.',
-      landlord: {
-        name: 'You (New Lister)',
-        email: 'you@example.com',
+      };
+      createdItem.availableDate = 'Immediate';
+      createdItem.isVerifiedLandlord = true;
+      createdItem.isFeaturedBoost = boostSelected;
+      createdItem.amenities = ['In-Building Laundry', 'Dishwasher', 'Parking'];
+      createdItem.landlord = {
+        name: currentUserName,
+        email: currentUserEmail,
         verifiedSince: '2026',
         responseRate: 'Under 1 hour',
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80'
+        avatar: currentUserAvatar
+      };
+    } else if (listingType === 'sublet') {
+      createdItem.subletPrice = Number(price);
+      createdItem.originalRent = Math.round(Number(price) * 1.15);
+      createdItem.term = 'Summer (May 1 - Aug 31)';
+      createdItem.startDate = 'May 1, 2026';
+      createdItem.endDate = 'August 31, 2026';
+      createdItem.bedroomsTotal = Number(bedrooms);
+      createdItem.bathroomsTotal = Number(bathrooms);
+      createdItem.subletScope = 'Entire Apartment';
+      createdItem.isFurnished = true;
+      createdItem.furnitureIncluded = ['Bed & Mattress', 'Study Desk', 'Sofa'];
+      createdItem.utilitiesIncluded = true;
+      createdItem.wifiIncluded = true;
+      createdItem.isStudentVerified = true;
+      createdItem.studentAffiliation = user?.universityAffiliation || 'Dalhousie';
+      createdItem.transitTimes = {
+        dalStudley: 10,
+        dalSexton: 12,
+        smu: 15,
+        msvu: 22,
+        nscc: 25
+      };
+      createdItem.lister = {
+        name: currentUserName,
+        email: currentUserEmail,
+        university: user?.universityAffiliation || 'Dalhousie',
+        major: 'Computer Science',
+        avatar: currentUserAvatar
+      };
+    }
+
+    // Attempt Supabase insert if connected
+    if (supabase && user) {
+      try {
+        await supabase.from('listings').insert({
+          user_id: user.id,
+          category: listingType === 'sublet' ? 'sublet' : 'rental',
+          title: createdItem.title,
+          neighborhood: createdItem.neighborhood,
+          address: createdItem.address,
+          price: createdItem.price || createdItem.subletPrice,
+          bedrooms: createdItem.bedrooms || createdItem.bedroomsTotal,
+          bathrooms: createdItem.bathrooms || createdItem.bathroomsTotal,
+          heating_type: createdItem.heatingType || 'Heat & Hot Water Included',
+          winter_parking: createdItem.winterParking || 'Assigned Driveway',
+          description: createdItem.description,
+          images: createdItem.images
+        });
+      } catch (err) {
+        console.warn('Could not save listing to Supabase, saving to state', err);
       }
-    };
+    }
 
     onListingCreated(createdItem);
     onClose();

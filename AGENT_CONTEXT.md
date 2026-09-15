@@ -63,11 +63,13 @@ hfxrentals/
     │   ├── Navbar.tsx           # Header with tabs, brand, favorites counter, post ad
     │   ├── HeroBanner.tsx       # Dynamic search, market stats, neighborhood chips
     │   ├── FilterBar.tsx        # Local Halifax toggles, campus slider, price ranges
-    │   ├── RentalCard.tsx       # True-cost utility metrics, winter parking indicators
-    │   ├── SubletCard.tsx       # Term tags, discount badges, furnished checklist
+    │   ├── RentalCard.tsx       # True-cost utility metrics, winter parking indicators, chat & edit/delete buttons
+    │   ├── SubletCard.tsx       # Term tags, discount badges, furnished checklist, chat & edit/delete buttons
     │   ├── RoommateCard.tsx     # Lifestyle radar, verified student badge, messaging
-    │   ├── ListingDetailModal.tsx # Photo gallery, commute table, inquiry form
-    │   ├── PostListingModal.tsx # 3-step wizard with category choice & boost upsells
+    │   ├── ListingDetailModal.tsx # Photo gallery, commute table, live chat launcher, landlord edit/delete
+    │   ├── PostListingModal.tsx # 3-step wizard with category choice & user/Supabase persistence
+    │   ├── EditListingModal.tsx # Full-featured listing editor & permanent delete manager
+    │   ├── ChatModal.tsx        # Real-time tenant-to-landlord chat with quick Halifax prompts
     │   ├── InsuranceWidget.tsx  # Tenant insurance affiliate revenue banner
     │   ├── ScamShieldBanner.tsx # Anti-fraud hub & remote inspection bookings
     │   └── FavoritesDrawer.tsx  # Slide-over saved listings manager
@@ -77,7 +79,7 @@ hfxrentals/
         ├── hero.css             # Hero layout, search bar, HRM stats
         ├── filters.css          # Dynamic filter controls & local pills
         ├── listings.css         # Grid layout, cards, badges, true-cost chips
-        ├── modal.css            # Modals, photo hero, post wizard, favorites drawer
+        ├── modal.css            # Modals, photo hero, post wizard, chat bubbles & edit form
         └── monetization.css     # Insurance banner, scam shield cards, red flags
 ```
 
@@ -94,9 +96,12 @@ hfxrentals/
 | Utility / Component | Current / Recommended Tool | AWS Native Equivalent | Migration Difficulty | Migration Notes & Friction |
 | :--- | :--- | :--- | :--- | :--- |
 | **Frontend Hosting** | Vercel (or local Vite) | **AWS Amplify** or **S3 + CloudFront** | 🟢 **Trivial (< 15 mins)** | `amplify.yml` and `deploy-aws-s3.sh` already built in the repo. Zero code changes required. |
+| **In-App Tenant-Landlord Chat** | Supabase `messages` Table + WebSockets (with localStorage fallback) | **AWS AppSync (GraphQL Subscriptions)** or **API Gateway WebSocket + DynamoDB** | 🟡 **Medium (3-4 hours)** | AppSync handles managed WebSockets. `ChatModal.tsx` UI stays identical; only the subscription hook switches to Amplify Data/AppSync client. |
+| **Listing CRUD (Edit & Delete)** | Supabase PostgreSQL `UPDATE` / `DELETE` | **Amazon RDS for PostgreSQL** or **Aurora Serverless** | 🟢 **Low (1 hour)** | 100% SQL compatible. `supabase-schema.sql` imports directly into Amazon RDS with zero syntax modifications. |
 | **Transactional & Update Emails** | React Email + Resend / Brevo (or Novu) | **Amazon SES (Simple Email Service)** | 🟢 **Low (1-2 hours)** | Switch the SMTP/API credentials to SES. Email templates (`React Email`) are 100% portable. Cost drops to $0.10 / 1,000 emails. |
 | **Listing Photo Storage** | Supabase Storage Bucket | **Amazon S3 + CloudFront** | 🟢 **Low (1-2 hours)** | Replace Supabase upload hook with S3 presigned PUT URL. Standard object storage. |
 | **Database (PostgreSQL)** | Supabase Managed Postgres | **Amazon RDS for PostgreSQL** or **Aurora Serverless** | 🟢 **Low (1-2 hours)** | 100% SQL compatible. `supabase-schema.sql` imports directly into Amazon RDS with zero syntax modifications. |
 | **Authentication** | Supabase Auth (Google OAuth + Email) | **AWS Cognito User Pools** | 🟡 **Medium (3-5 hours)** | Switching from Supabase Auth to Cognito requires replacing the AuthContext client SDK with `@aws-amplify/auth` or AWS Cognito Identity SDK. (Google OAuth setup remains identical). |
 | **Cron / Scheduled Alerts** | Supabase Scheduled Functions / Cron | **AWS EventBridge + AWS Lambda** | 🟢 **Low (1-2 hours)** | EventBridge cron expression triggers a Lambda function querying DB and dispatching SES emails. |
 | **Calendar Viewing Scheduler** | Google Calendar link generation | **Same (Client-side URL generator)** | 🟢 **Trivial (0 mins)** | Pure frontend client-side utility (`calendar.google.com/render`); 100% independent of cloud provider. |
+
