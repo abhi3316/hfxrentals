@@ -15,6 +15,7 @@ import { PostListingModal } from './components/PostListingModal';
 import { EditListingModal } from './components/EditListingModal';
 import { ChatModal } from './components/ChatModal';
 import { AuthModal } from './components/AuthModal';
+import { AccountSettingsModal } from './components/AccountSettingsModal';
 import { InsuranceWidget } from './components/InsuranceWidget';
 import { ScamShieldBanner } from './components/ScamShieldBanner';
 import { FavoritesDrawer } from './components/FavoritesDrawer';
@@ -61,6 +62,7 @@ export const App: React.FC = () => {
   const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
   const [isPostListingOpen, setIsPostListingOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
   const [selectedListing, setSelectedListing] = useState<RentalListing | SubletListing | null>(null);
   const [schedulingListing, setSchedulingListing] = useState<RentalListing | SubletListing | null>(null);
   const [chatListing, setChatListing] = useState<RentalListing | SubletListing | null>(null);
@@ -211,11 +213,11 @@ export const App: React.FC = () => {
                 amenities: d.amenities || ['In-Building Laundry', 'Parking'],
                 description: d.description || '',
                 landlord: {
-                  name: 'Halifax Landlord',
-                  email: 'landlord@example.com',
+                  name: (user && d.user_id === user.id) ? user.name : (d.landlord_name || 'Verified Landlord'),
+                  email: (user && d.user_id === user.id) ? user.email : (d.landlord_email || 'landlord@hfxrentals.ca'),
                   verifiedSince: '2026',
                   responseRate: 'Under 1 hour',
-                  avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80'
+                  avatar: (user && d.user_id === user.id && user.avatarUrl) ? user.avatarUrl : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80'
                 }
               }));
 
@@ -245,11 +247,11 @@ export const App: React.FC = () => {
                 studentAffiliation: 'Dalhousie',
                 description: d.description || '',
                 lister: {
-                  name: 'Student Lister',
-                  email: 'student@dal.ca',
+                  name: (user && d.user_id === user.id) ? user.name : (d.lister_name || 'Student Lister'),
+                  email: (user && d.user_id === user.id) ? user.email : (d.lister_email || 'student@dal.ca'),
                   university: 'Dalhousie',
                   major: 'Computer Science',
-                  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'
+                  avatar: (user && d.user_id === user.id && user.avatarUrl) ? user.avatarUrl : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'
                 }
               }));
 
@@ -262,7 +264,36 @@ export const App: React.FC = () => {
       };
       fetchListings();
     }
-  }, []);
+  }, [user]);
+
+  // Synchronize landlord and lister names with account name
+  const handleUsernameUpdated = (newName: string) => {
+    if (user) {
+      setRentals(prev => {
+        const next = prev.map(r => (r.userId === user.id ? {
+          ...r,
+          landlord: { ...r.landlord, name: newName }
+        } : r));
+        localStorage.setItem('hfx_local_rentals', JSON.stringify(next));
+        return next;
+      });
+      setSublets(prev => {
+        const next = prev.map(s => (s.userId === user.id ? {
+          ...s,
+          lister: { ...s.lister, name: newName }
+        } : s));
+        localStorage.setItem('hfx_local_sublets', JSON.stringify(next));
+        return next;
+      });
+    }
+  };
+
+  // Keep landlord name in sync when user logs in or updates
+  useEffect(() => {
+    if (user?.name) {
+      handleUsernameUpdated(user.name);
+    }
+  }, [user?.name, user?.id]);
 
   // Handle new listing submission
   const handleListingCreated = (item: any) => {
@@ -363,6 +394,7 @@ export const App: React.FC = () => {
         onOpenFavorites={() => setIsFavoritesOpen(true)}
         onOpenPostListing={() => setIsPostListingOpen(true)}
         onOpenAuth={() => setIsAuthOpen(true)}
+        onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
       />
 
       <main>
@@ -622,6 +654,12 @@ export const App: React.FC = () => {
       <AuthModal
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
+      />
+
+      <AccountSettingsModal
+        isOpen={isAccountSettingsOpen}
+        onClose={() => setIsAccountSettingsOpen(false)}
+        onUsernameUpdated={handleUsernameUpdated}
       />
 
       <FavoritesDrawer

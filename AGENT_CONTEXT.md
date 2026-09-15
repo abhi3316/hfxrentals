@@ -69,6 +69,7 @@ hfxrentals/
     │   ├── ListingDetailModal.tsx # Photo gallery, commute table, live chat launcher, landlord edit/delete
     │   ├── PostListingModal.tsx # 3-step wizard with category choice & user/Supabase persistence
     │   ├── EditListingModal.tsx # Full-featured listing editor & permanent delete manager
+    │   ├── AccountSettingsModal.tsx # Profile editor, locked immutable email & display name sync
     │   ├── ChatModal.tsx        # Real-time tenant-to-landlord chat with quick Halifax prompts
     │   ├── InsuranceWidget.tsx  # Tenant insurance affiliate revenue banner
     │   ├── ScamShieldBanner.tsx # Anti-fraud hub & remote inspection bookings
@@ -96,6 +97,7 @@ hfxrentals/
 | Utility / Component | Current / Recommended Tool | AWS Native Equivalent | Migration Difficulty | Migration Notes & Friction |
 | :--- | :--- | :--- | :--- | :--- |
 | **Frontend Hosting** | Vercel (or local Vite) | **AWS Amplify** or **S3 + CloudFront** | 🟢 **Trivial (< 15 mins)** | `amplify.yml` and `deploy-aws-s3.sh` already built in the repo. Zero code changes required. |
+| **Account Profile & Username Updates** | `AuthContext` + Supabase `profiles` / User Metadata | **AWS Cognito User Pools (Standard & Custom Attributes)** | 🟢 **Low (1-2 hours)** | In Cognito, set `email` attribute schema as immutable (`Mutable: false`). Username / `name` updates via `Auth.updateUserAttributes({ name: newName })` in `@aws-amplify/auth`. Zero complex backend needed. |
 | **In-App Tenant-Landlord Chat** | Supabase `messages` Table + WebSockets (with localStorage fallback) | **AWS AppSync (GraphQL Subscriptions)** or **API Gateway WebSocket + DynamoDB** | 🟡 **Medium (3-4 hours)** | AppSync handles managed WebSockets. `ChatModal.tsx` UI stays identical; only the subscription hook switches to Amplify Data/AppSync client. |
 | **Listing CRUD (Edit & Delete)** | Supabase PostgreSQL `UPDATE` / `DELETE` | **Amazon RDS for PostgreSQL** or **Aurora Serverless** | 🟢 **Low (1 hour)** | 100% SQL compatible. `supabase-schema.sql` imports directly into Amazon RDS with zero syntax modifications. |
 | **Transactional & Update Emails** | React Email + Resend / Brevo (or Novu) | **Amazon SES (Simple Email Service)** | 🟢 **Low (1-2 hours)** | Switch the SMTP/API credentials to SES. Email templates (`React Email`) are 100% portable. Cost drops to $0.10 / 1,000 emails. |
@@ -104,4 +106,3 @@ hfxrentals/
 | **Authentication** | Supabase Auth (Google OAuth + Email) | **AWS Cognito User Pools** | 🟡 **Medium (3-5 hours)** | Switching from Supabase Auth to Cognito requires replacing the AuthContext client SDK with `@aws-amplify/auth` or AWS Cognito Identity SDK. (Google OAuth setup remains identical). |
 | **Cron / Scheduled Alerts** | Supabase Scheduled Functions / Cron | **AWS EventBridge + AWS Lambda** | 🟢 **Low (1-2 hours)** | EventBridge cron expression triggers a Lambda function querying DB and dispatching SES emails. |
 | **Calendar Viewing Scheduler** | Google Calendar link generation | **Same (Client-side URL generator)** | 🟢 **Trivial (0 mins)** | Pure frontend client-side utility (`calendar.google.com/render`); 100% independent of cloud provider. |
-

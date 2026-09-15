@@ -11,6 +11,7 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   loginAsDemo: (role: 'student' | 'landlord') => void;
+  updateUsername: (newName: string) => Promise<{ error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -206,6 +207,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(demoUser));
   };
 
+  const updateUsername = async (newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed) {
+      return { error: 'Username cannot be blank' };
+    }
+    if (!user) {
+      return { error: 'No user is currently signed in' };
+    }
+
+    const updatedUser: AppUser = {
+      ...user,
+      name: trimmed
+    };
+    setUser(updatedUser);
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedUser));
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.auth.updateUser({
+          data: { full_name: trimmed }
+        });
+        await supabase
+          .from('profiles')
+          .update({ full_name: trimmed })
+          .eq('id', user.id);
+      } catch (err: any) {
+        console.warn('Could not sync name update to Supabase', err);
+      }
+    }
+
+    return {};
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -216,7 +250,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signUpWithEmail,
         loginWithGoogle,
         logout,
-        loginAsDemo
+        loginAsDemo,
+        updateUsername
       }}
     >
       {children}

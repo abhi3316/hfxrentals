@@ -11,6 +11,7 @@ interface NavbarProps {
   onOpenFavorites: () => void;
   onOpenPostListing: () => void;
   onOpenAuth: () => void;
+  onOpenAccountSettings?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -19,7 +20,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   favoritesCount,
   onOpenFavorites,
   onOpenPostListing,
-  onOpenAuth
+  onOpenAuth,
+  onOpenAccountSettings
 }) => {
   const { user, logout } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -157,6 +159,29 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                     <button
                       type="button"
+                      onClick={() => {
+                        setIsDropdownOpen(false);
+                        if (onOpenAccountSettings) onOpenAccountSettings();
+                      }}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '8px 16px',
+                        fontSize: '0.82rem',
+                        color: 'var(--slate-200)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        background: 'transparent',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <User size={14} color="var(--teal-400)" />
+                      <span>Profile & Settings</span>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => { onOpenFavorites(); setIsDropdownOpen(false); }}
                       style={{
                         width: '100%',
@@ -167,7 +192,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                         display: 'flex',
                         alignItems: 'center',
                         gap: 8,
-                        background: 'transparent'
+                        background: 'transparent',
+                        cursor: 'pointer'
                       }}
                     >
                       <Heart size={14} /> My Saved Places
