@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { RentalListing, SubletListing } from '../types';
+import type { RentalListing, SubletListing, AppUser } from '../types';
 import { X, MapPin, Flame, Bus, Send, CheckCircle2, MessageCircle, Edit3, Trash2, ShieldCheck } from 'lucide-react';
 import '../styles/modal.css';
 
@@ -12,6 +12,8 @@ interface ListingDetailModalProps {
   onEditListing?: (listing: RentalListing | SubletListing) => void;
   onDeleteListing?: (listingId: string) => void;
   isOwner?: boolean;
+  currentUser?: AppUser | null;
+  onOpenAuth?: () => void;
 }
 
 export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
@@ -22,7 +24,9 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
   onOpenChat,
   onEditListing,
   onDeleteListing,
-  isOwner = false
+  isOwner = false,
+  currentUser = null,
+  onOpenAuth
 }) => {
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [inquiryName, setInquiryName] = useState('');
@@ -37,6 +41,15 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
 
   const handleSubmitInquiry = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUser) {
+      if (onOpenAuth) {
+        onClose();
+        onOpenAuth();
+      } else {
+        alert('Please sign in to send messages or inquiries.');
+      }
+      return;
+    }
     setInquirySent(true);
   };
 
@@ -90,7 +103,11 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                 style={{ marginTop: 10, padding: '10px 14px', fontSize: '0.85rem', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                 onClick={() => {
                   onClose();
-                  onOpenChat(listing);
+                  if (!currentUser && onOpenAuth) {
+                    onOpenAuth();
+                  } else {
+                    onOpenChat(listing);
+                  }
                 }}
               >
                 <MessageCircle size={16} />
@@ -322,7 +339,30 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
               Message {isRental ? (listing as RentalListing).landlord.name : (listing as SubletListing).lister.name}
             </h4>
 
-            {inquirySent ? (
+            {!currentUser ? (
+              <div style={{
+                padding: '24px 20px',
+                textAlign: 'center',
+                background: 'rgba(7, 19, 33, 0.6)',
+                border: '1px solid var(--glass-border)',
+                borderRadius: 'var(--radius-md)'
+              }}>
+                <p style={{ fontSize: '0.9rem', color: 'var(--slate-300)', marginBottom: 14, lineHeight: 1.5 }}>
+                  🔒 You must be signed in with a verified account to message this lister and prevent spam.
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ padding: '8px 22px', fontSize: '0.85rem' }}
+                  onClick={() => {
+                    onClose();
+                    if (onOpenAuth) onOpenAuth();
+                  }}
+                >
+                  Sign In to Message
+                </button>
+              </div>
+            ) : inquirySent ? (
               <div style={{ padding: '20px', textAlign: 'center', background: 'rgba(0, 168, 150, 0.15)', borderRadius: 'var(--radius-md)' }}>
                 <CheckCircle2 size={36} color="var(--teal-400)" style={{ margin: '0 auto 8px auto' }} />
                 <h5 style={{ fontSize: '1.1rem', color: '#ffffff' }}>Inquiry Sent Successfully!</h5>
@@ -367,7 +407,11 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                       style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem' }}
                       onClick={() => {
                         onClose();
-                        onOpenChat(listing);
+                        if (!currentUser && onOpenAuth) {
+                          onOpenAuth();
+                        } else {
+                          onOpenChat(listing);
+                        }
                       }}
                     >
                       <MessageCircle size={15} color="var(--teal-400)" />

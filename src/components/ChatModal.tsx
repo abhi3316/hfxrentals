@@ -9,6 +9,7 @@ interface ChatModalProps {
   listing: RentalListing | SubletListing;
   onClose: () => void;
   onOpenViewingScheduler?: (listing: RentalListing | SubletListing) => void;
+  onOpenAuth?: () => void;
 }
 
 const QUICK_PROMPTS = [
@@ -21,7 +22,8 @@ const QUICK_PROMPTS = [
 export const ChatModal: React.FC<ChatModalProps> = ({
   listing,
   onClose,
-  onOpenViewingScheduler
+  onOpenViewingScheduler,
+  onOpenAuth
 }) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -202,7 +204,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({
         window.removeEventListener('storage', handleStorage);
       };
     }
-  }, [listing.id, listerName, landlordId, storageKey]);
+  }, [listing.id, listing.title, listerName, landlordId, storageKey]);
 
   // List of all distinct tenants who have messaged about this listing (for Landlord View)
   const tenantInquiries = useMemo(() => {
@@ -242,10 +244,79 @@ export const ChatModal: React.FC<ChatModalProps> = ({
 
   // Auto-scroll to bottom
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
   }, [activeConversationMessages]);
 
+  // Block unauthenticated visitors from accessing chat or sending messages
+  if (!user) {
+    return (
+      <div className="modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="chat-auth-barrier-title">
+        <div
+          className="modal-content"
+          onClick={(e) => e.stopPropagation()}
+          style={{ maxWidth: 440, textAlign: 'center', padding: '36px 24px', margin: 'auto' }}
+        >
+          <button className="modal-close-btn" onClick={onClose} aria-label="Close Chat">
+            <X size={18} />
+          </button>
+
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              background: 'rgba(0, 168, 150, 0.15)',
+              border: '1px solid rgba(0, 168, 150, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--teal-400)',
+              margin: '0 auto 16px auto'
+            }}
+          >
+            <Lock size={26} />
+          </div>
+
+          <h3 id="chat-auth-barrier-title" style={{ fontSize: '1.25rem', color: '#ffffff', marginBottom: 8, fontWeight: 600 }}>
+            Sign In Required to Chat
+          </h3>
+
+          <p style={{ fontSize: '0.88rem', color: 'var(--slate-300)', lineHeight: 1.5, marginBottom: 20 }}>
+            You must be signed in to chat with property owners and listers in Halifax. This protects our community against spam and fraudulent inquiries.
+          </p>
+
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onClose}
+              style={{ padding: '8px 18px', fontSize: '0.85rem' }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                onClose();
+                if (onOpenAuth) onOpenAuth();
+              }}
+              style={{ padding: '8px 20px', fontSize: '0.85rem' }}
+            >
+              Sign In to Chat
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const handleSendMessage = async (textToSend?: string) => {
+    if (!user) {
+      if (onOpenAuth) onOpenAuth();
+      return;
+    }
+
     const text = (textToSend || inputText).trim();
     if (!text) return;
 

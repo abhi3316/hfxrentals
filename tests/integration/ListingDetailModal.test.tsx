@@ -130,6 +130,81 @@ describe('ListingDetailModal Integration Tests', () => {
     });
   });
 
+  describe('Authentication & Messaging Barriers', () => {
+    it('displays sign-in prompt instead of inquiry form when currentUser is null', () => {
+      render(<ListingDetailModal {...defaultProps} currentUser={null} />);
+
+      expect(screen.getByText(/you must be signed in with a verified account to message this lister/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /sign in to message/i })).toBeInTheDocument();
+      expect(screen.queryByPlaceholderText(/your full name/i)).not.toBeInTheDocument();
+    });
+
+    it('triggers onOpenAuth when clicking "Sign In to Message"', () => {
+      const onOpenAuthMock = vi.fn();
+      const onCloseMock = vi.fn();
+
+      render(
+        <ListingDetailModal
+          {...defaultProps}
+          currentUser={null}
+          onOpenAuth={onOpenAuthMock}
+          onClose={onCloseMock}
+        />
+      );
+
+      const signInBtn = screen.getByRole('button', { name: /sign in to message/i });
+      fireEvent.click(signInBtn);
+
+      expect(onCloseMock).toHaveBeenCalledTimes(1);
+      expect(onOpenAuthMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('triggers onOpenAuth when clicking "Chat with Landlord" while unauthenticated', () => {
+      const onOpenAuthMock = vi.fn();
+      const onCloseMock = vi.fn();
+
+      render(
+        <ListingDetailModal
+          {...defaultProps}
+          currentUser={null}
+          onOpenAuth={onOpenAuthMock}
+          onClose={onCloseMock}
+        />
+      );
+
+      const chatBtn = screen.getByText(/chat with landlord/i);
+      fireEvent.click(chatBtn);
+
+      expect(onCloseMock).toHaveBeenCalledTimes(1);
+      expect(onOpenAuthMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('displays and submits inquiry form when currentUser is authenticated', () => {
+      const loggedInUser = {
+        id: 'user-auth-1',
+        name: 'Jordan MacLean',
+        email: 'jordan@dal.ca',
+        role: 'student' as const
+      };
+
+      render(<ListingDetailModal {...defaultProps} currentUser={loggedInUser} />);
+
+      expect(screen.getByPlaceholderText(/your full name/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /send inquiry/i })).toBeInTheDocument();
+
+      const nameInput = screen.getByPlaceholderText(/your full name/i);
+      const emailInput = screen.getByPlaceholderText(/your email address/i);
+
+      fireEvent.change(nameInput, { target: { value: 'Jordan MacLean' } });
+      fireEvent.change(emailInput, { target: { value: 'jordan@dal.ca' } });
+
+      const sendBtn = screen.getByRole('button', { name: /send inquiry/i });
+      fireEvent.click(sendBtn);
+
+      expect(screen.getByText(/inquiry sent successfully!/i)).toBeInTheDocument();
+    });
+  });
+
   describe('Modal Dismissal & Navigation', () => {
     it('calls onClose when close button is clicked', () => {
       const onCloseMock = vi.fn();

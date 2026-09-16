@@ -74,3 +74,8 @@ if (typeof URL.createObjectURL === 'undefined' || !vi.isMockFunction(URL.createO
 if (typeof URL.revokeObjectURL === 'undefined' || !vi.isMockFunction(URL.revokeObjectURL)) {
   URL.revokeObjectURL = vi.fn();
 }
+
+// Mock Element.prototype.scrollIntoView for JSDOM
+if (typeof Element !== 'undefined') {
+  Element.prototype.scrollIntoView = vi.fn();
+}

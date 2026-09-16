@@ -40,17 +40,25 @@
    * Zombie state prevention: If Supabase fails to delete the row (e.g., RLS violation or network error), image and message deletion is halted to avoid leaving corrupted listings without assets.
    * Trigger resilience: In `supabase-schema.sql`, `delete_listing_cascade_data()` handles cascading deletions for `messages` and `viewings`. Direct SQL deletion from `storage.objects` is explicitly omitted because Supabase enforces `storage.protect_delete()` which prohibits direct SQL table deletion; photo cleanup is handled exclusively through the client Storage API (`deleteListingPhotos`).
    * Unauthenticated visitor protection: `isListingOwner` strictly checks `if (!user) return false;` first, ensuring non-logged-in visitors browsing the platform never see "Your Listing" badges, Edit buttons, or Delete buttons. In addition, `handleDeleteListing` halts immediately if invoked while `!user`.
-10. **Automated Test Framework & Security Validation Suite**:
+   * Pop-up Confirmation Modal: Listing deletion requires explicit confirmation via `<DeleteConfirmModal />` (`src/components/DeleteConfirmModal.tsx`). Shows listing title, address, thumbnail, price, and clear warning that photos, viewing slots, and messages will be permanently purged. Prevents accidental one-click deletion from cards and detail modals.
+10. **Chat & Messaging Authentication Guard**:
+    * Unauthenticated visitors (`!user`) are strictly prevented from chatting or sending private inquiries.
+    * Triggering "Chat", "Inquiries", "Open Live Chat", or roommate "Message" opens the sign-in modal (`setIsAuthOpen(true)`).
+    * `ListingDetailModal` displays an inline "Sign In to Message" barrier for unauthenticated visitors.
+    * `ChatModal` enforces an internal defense-in-depth lock screen barrier (`Sign In Required to Chat`) blocking message submission and quick prompts if accessed without an active session.
+11. **Automated Test Framework & Security Validation Suite**:
     * Test Runner: Vitest (v4.1.11) with JSDOM environment (`vitest.config.ts`, `tests/setup.ts`).
     * UI Testing: `@testing-library/react` (v16.3.3) and `@testing-library/jest-dom` (v7.0.1).
-    * Test Suites:
+    * Test Suites (8 files, 73 tests passing):
       - `tests/unit/auth-and-ownership.test.ts`: Complete authorization matrix testing unauthenticated visitors, tenant isolation, landlord demo privileges, and cross-user boundaries.
-      - `tests/unit/address-service.test.ts`: HRM street cache lookup, house number preservation, and neighborhood classifier (South End, North End, West End/Quinpool, Clayton Park, Bedford, Fairview, Dartmouth).
+      - `tests/unit/address-service.test.ts`: HRM street cache lookup, house number preservation, and neighborhood classifier.
       - `tests/unit/storage-engine.test.ts`: URL path extraction, query parameter stripping, deduplication, and cascade photo deletion via client Storage API.
       - `tests/unit/image-optimizer.test.ts`: Client-side HTML5 Canvas WebP compression, aspect ratio downscaling, and MIME validation.
       - `tests/integration/RentalCard.test.tsx`: Card-level authorization rendering (hiding edit/delete from non-owners, rendering for owners, chat vs inquiries button states).
-      - `tests/integration/ListingDetailModal.test.tsx`: Modal-level authorization rendering, delete trigger cascade, and close-on-delete interaction.
-    * Execution: `npm test` runs 59 tests in ~1.5s with 100% pass rate.
+      - `tests/integration/ListingDetailModal.test.tsx`: Modal-level authorization rendering, delete trigger cascade, and inline inquiry auth barriers.
+      - `tests/integration/DeleteConfirmModal.test.tsx`: Confirmation pop-up modal rendering, cancellation, deletion confirmation, and disabled loading state.
+      - `tests/integration/ChatAuth.test.tsx`: Lock barrier rendering when unauthenticated, chat access and messaging input when logged in.
+    * Execution: `npm test` runs 73 tests in ~2.0s with 100% pass rate.
 
 ## Tech Stack & Architecture
 * **Frontend**: React 19 + TypeScript + Vite.
@@ -81,7 +89,9 @@ hfxrentals/
 │   │   └── image-optimizer.test.ts    # Canvas WebP downscaling & MIME validation tests
 │   └── integration/
 │       ├── RentalCard.test.tsx        # UI ownership enforcement & button visibility
-│       └── ListingDetailModal.test.tsx# Modal action bar & cascade delete trigger tests
+│       ├── ListingDetailModal.test.tsx# Modal action bar & cascade delete trigger tests
+│       ├── DeleteConfirmModal.test.tsx# Deletion confirmation popup modal tests
+│       └── ChatAuth.test.tsx          # Chat barrier and authentication guard tests
 ├── AGENT_CONTEXT.md             # Sub-agent synchronization context
 └── src/
     ├── main.tsx                 # App mount & global style loading
@@ -99,10 +109,11 @@ hfxrentals/
     │   ├── SubletCard.tsx       # Term tags, discount badges, furnished checklist, chat & edit/delete buttons
     │   ├── RoommateCard.tsx     # Lifestyle radar, verified student badge, messaging
     │   ├── ListingDetailModal.tsx # Photo gallery, commute table, live chat launcher, landlord edit/delete
+    │   ├── DeleteConfirmModal.tsx # Pop-up confirmation modal for safe listing deletions
     │   ├── PostListingModal.tsx # 3-step wizard with category choice & user/Supabase persistence
     │   ├── EditListingModal.tsx # Full-featured listing editor & permanent delete manager
     │   ├── AccountSettingsModal.tsx # Profile editor, locked immutable email & display name sync
-    │   ├── ChatModal.tsx        # Real-time tenant-to-landlord chat with quick Halifax prompts
+    │   ├── ChatModal.tsx        # Real-time tenant-to-landlord chat with quick Halifax prompts & auth barrier
     │   ├── InsuranceWidget.tsx  # Tenant insurance affiliate revenue banner
     │   ├── ScamShieldBanner.tsx # Anti-fraud hub & remote inspection bookings
     │   ├── AddressAutocomplete.tsx # Uber-style Halifax address autocomplete with auto-neighborhood detection

@@ -18,6 +18,7 @@ import { EditListingModal } from './components/EditListingModal';
 import { ChatModal } from './components/ChatModal';
 import { AuthModal } from './components/AuthModal';
 import { AccountSettingsModal } from './components/AccountSettingsModal';
+import { DeleteConfirmModal } from './components/DeleteConfirmModal';
 import { InsuranceWidget } from './components/InsuranceWidget';
 import { ScamShieldBanner } from './components/ScamShieldBanner';
 import { FavoritesDrawer } from './components/FavoritesDrawer';
@@ -104,6 +105,8 @@ export const App: React.FC = () => {
   const [schedulingListing, setSchedulingListing] = useState<RentalListing | SubletListing | null>(null);
   const [chatListing, setChatListing] = useState<RentalListing | SubletListing | null>(null);
   const [editingListing, setEditingListing] = useState<RentalListing | SubletListing | null>(null);
+  const [deletingListing, setDeletingListing] = useState<RentalListing | SubletListing | null>(null);
+  const [isDeletingListing, setIsDeletingListing] = useState(false);
 
   const toggleFavorite = (id: string) => {
     setFavorites(prev => 
@@ -474,11 +477,29 @@ export const App: React.FC = () => {
     }
   };
 
-  // Handle listing delete
-  const handleDeleteListing = async (listingId: string) => {
+  // Open chat with authentication guard
+  const handleOpenChat = (listing: RentalListing | SubletListing) => {
+    if (!user) {
+      setIsAuthOpen(true);
+      return;
+    }
+    setChatListing(listing);
+  };
+
+  // Open roommate message dialog with authentication guard
+  const handleOpenRoommateMessage = (profile: RoommateProfile) => {
+    if (!user) {
+      setIsAuthOpen(true);
+      return;
+    }
+    alert(`Direct message dialog with ${profile.name} opened. Their email is verified!`);
+  };
+
+  // Core listing deletion execution (transactional order: DB row first, then storage & messages)
+  const executeDeleteListing = async (listingId: string) => {
     if (!user) {
       console.warn('[handleDeleteListing] Blocked: Unauthenticated visitor cannot delete listings.');
-      alert('You must be signed in as the listing owner to delete a listing.');
+      setIsAuthOpen(true);
       return;
     }
 
@@ -589,6 +610,34 @@ export const App: React.FC = () => {
     try {
       localStorage.removeItem(`hfx_private_msgs_${listingId}`);
     } catch {}
+
+    // Close any open modals displaying this listing
+    if (selectedListing?.id === listingId) setSelectedListing(null);
+    if (editingListing?.id === listingId) setEditingListing(null);
+    if (chatListing?.id === listingId) setChatListing(null);
+  };
+
+  // Requests deletion confirmation via a popup modal
+  const handleDeleteListing = (listingId: string) => {
+    if (!user) {
+      console.warn('[handleDeleteListing] Blocked: Unauthenticated visitor cannot delete listings.');
+      setIsAuthOpen(true);
+      return;
+    }
+
+    const targetListing = rentals.find(r => r.id === listingId) || sublets.find(s => s.id === listingId);
+    setDeletingListing(targetListing || ({ id: listingId, title: 'Listing' } as any));
+  };
+
+  // Executes confirmed deletion from the pop-up modal
+  const handleConfirmDelete = async (listingId: string) => {
+    setIsDeletingListing(true);
+    try {
+      await executeDeleteListing(listingId);
+    } finally {
+      setIsDeletingListing(false);
+      setDeletingListing(null);
+    }
   };
 
   // Load sample demo data on demand
@@ -663,7 +712,7 @@ export const App: React.FC = () => {
                       onToggleFavorite={toggleFavorite}
                       onSelectListing={(item) => setSelectedListing(item)}
                       onScheduleViewing={(item) => setSchedulingListing(item)}
-                      onOpenChat={(item) => setChatListing(item)}
+                      onOpenChat={handleOpenChat}
                       onEditListing={(item) => setEditingListing(item)}
                       onDeleteListing={handleDeleteListing}
                       isOwner={isOwner}
@@ -725,7 +774,7 @@ export const App: React.FC = () => {
                       onToggleFavorite={toggleFavorite}
                       onSelectSublet={(item) => setSelectedListing(item)}
                       onScheduleViewing={(item) => setSchedulingListing(item)}
-                      onOpenChat={(item) => setChatListing(item)}
+                      onOpenChat={handleOpenChat}
                       onEditListing={(item) => setEditingListing(item)}
                       onDeleteListing={handleDeleteListing}
                       isOwner={isOwner}
@@ -771,7 +820,7 @@ export const App: React.FC = () => {
                   <RoommateCard
                     key={profile.id}
                     profile={profile}
-                    onOpenMessage={(prof) => alert(`Direct message dialog with ${prof.name} opened. Their email is verified!`)}
+                    onOpenMessage={handleOpenRoommateMessage}
                   />
                 ))
               ) : (
@@ -872,7 +921,7 @@ export const App: React.FC = () => {
             }}
             onOpenChat={(item) => {
               setSelectedListing(null);
-              setChatListing(item);
+              handleOpenChat(item);
             }}
             onEditListing={(item) => {
               setSelectedListing(null);
@@ -880,6 +929,8 @@ export const App: React.FC = () => {
             }}
             onDeleteListing={handleDeleteListing}
             isOwner={isOwner}
+            currentUser={user}
+            onOpenAuth={() => setIsAuthOpen(true)}
           />
         );
       })()}
@@ -919,6 +970,7 @@ export const App: React.FC = () => {
               setChatListing(null);
               setSchedulingListing(item);
             }}
+            onOpenAuth={() => setIsAuthOpen(true)}
           />
         );
       })()}
@@ -931,6 +983,16 @@ export const App: React.FC = () => {
           onDelete={handleDeleteListing}
         />
       )}
+
+      <DeleteConfirmModal
+        isOpen={Boolean(deletingListing)}
+        listing={deletingListing}
+        onClose={() => {
+          if (!isDeletingListing) setDeletingListing(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        isDeleting={isDeletingListing}
+      />
 
       {isPostListingOpen && (
         <PostListingModal
