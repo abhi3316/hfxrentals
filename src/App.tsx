@@ -4,6 +4,7 @@ import { MOCK_RENTALS, MOCK_SUBLETS, MOCK_ROOMMATES } from './data/mockData';
 import { useAuth } from './context/AuthContext';
 import { supabase } from './lib/supabase';
 import { deleteListingPhotos } from './utils/storage';
+import { isListingOwner as checkOwnership } from './utils/ownership';
 import { Navbar } from './components/Navbar';
 import { HeroBanner } from './components/HeroBanner';
 import { FilterBar } from './components/FilterBar';
@@ -38,6 +39,30 @@ const INITIAL_FILTERS: FilterState = {
   furnishedOnly: false,
   roommateLookingFor: 'all',
   genderPref: 'all'
+};
+
+// Safe helper to persist to localStorage without hitting quota errors or crashing React
+const safeSetLocalStorage = (key: string, data: any) => {
+  try {
+    // If saving listings, replace heavy data:image/ base64 strings to prevent QuotaExceededError
+    const sanitized = Array.isArray(data) ? data.map(item => {
+      if (item.images && Array.isArray(item.images)) {
+        return {
+          ...item,
+          images: item.images.map((img: string) =>
+            img && typeof img === 'string' && img.startsWith('data:image/')
+              ? 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80'
+              : img
+          )
+        };
+      }
+      return item;
+    }) : data;
+
+    localStorage.setItem(key, JSON.stringify(sanitized));
+  } catch (e) {
+    console.warn(`localStorage save failed for ${key}:`, e);
+  }
 };
 
 export const App: React.FC = () => {
@@ -195,11 +220,7 @@ export const App: React.FC = () => {
 
   // Fetch listings from Supabase on mount
   // Helper to identify if listing belongs to active session
-  const isListingOwner = (userId?: string) => {
-    if (!user) return true;
-    if (!userId || userId === 'local-landlord' || userId.startsWith('custom-')) return true;
-    return userId === user.id;
-  };
+  const isListingOwner = (userId?: string) => checkOwnership(user, userId);
 
   // Fetch live Supabase listings
   useEffect(() => {
@@ -221,7 +242,7 @@ export const App: React.FC = () => {
             data = res.data;
           }
 
-          if (data && data.length > 0) {
+          if (data && Array.isArray(data)) {
             const dbRentals: RentalListing[] = data
               .filter((d: any) => d.category === 'rental')
               .map((d: any) => {
@@ -314,8 +335,19 @@ export const App: React.FC = () => {
                 };
               });
 
-            if (dbRentals.length > 0) setRentals(dbRentals);
-            if (dbSublets.length > 0) setSublets(dbSublets);
+            // Synchronize state with Supabase data while preserving local-only custom listings
+            setRentals(prev => {
+              const localCustom = prev.filter(r => r.id.startsWith('custom-'));
+              const combined = [...dbRentals, ...localCustom.filter(lc => !dbRentals.some(db => db.id === lc.id))];
+              safeSetLocalStorage('hfx_local_rentals', combined);
+              return combined;
+            });
+            setSublets(prev => {
+              const localCustom = prev.filter(s => s.id.startsWith('custom-'));
+              const combined = [...dbSublets, ...localCustom.filter(lc => !dbSublets.some(db => db.id === lc.id))];
+              safeSetLocalStorage('hfx_local_sublets', combined);
+              return combined;
+            });
           }
         } catch (e) {
           console.error('Error fetching Supabase listings', e);
@@ -388,30 +420,6 @@ export const App: React.FC = () => {
     }
   }, [user?.name, user?.id, user?.avatarUrl]);
 
-  // Safe helper to persist to localStorage without hitting quota errors or crashing React
-  const safeSetLocalStorage = (key: string, data: any) => {
-    try {
-      // If saving listings, replace heavy data:image/ base64 strings to prevent QuotaExceededError
-      const sanitized = Array.isArray(data) ? data.map(item => {
-        if (item.images && Array.isArray(item.images)) {
-          return {
-            ...item,
-            images: item.images.map((img: string) =>
-              img && typeof img === 'string' && img.startsWith('data:image/')
-                ? 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80'
-                : img
-            )
-          };
-        }
-        return item;
-      }) : data;
-
-      localStorage.setItem(key, JSON.stringify(sanitized));
-    } catch (e) {
-      console.warn(`localStorage save failed for ${key}:`, e);
-    }
-  };
-
   // Handle new listing submission
   const handleListingCreated = (item: any) => {
     if (item.subletPrice !== undefined) {
@@ -468,6 +476,12 @@ export const App: React.FC = () => {
 
   // Handle listing delete
   const handleDeleteListing = async (listingId: string) => {
+    if (!user) {
+      console.warn('[handleDeleteListing] Blocked: Unauthenticated visitor cannot delete listings.');
+      alert('You must be signed in as the listing owner to delete a listing.');
+      return;
+    }
+
     // 1. Gather all image URLs from current React state
     const targetListing = rentals.find(r => r.id === listingId) || sublets.find(s => s.id === listingId);
     let imagesToDelete: string[] = targetListing?.images ? [...targetListing.images] : [];
@@ -479,8 +493,9 @@ export const App: React.FC = () => {
         let query = supabase.from('listings').select('images');
         if (isUUID) {
           query = query.eq('id', listingId);
-        } else if (targetListing?.title && user?.id) {
-          query = query.eq('user_id', user.id).eq('title', targetListing.title);
+        } else if (targetListing?.title) {
+          query = query.eq('title', targetListing.title);
+          if (user?.id) query = query.eq('user_id', user.id);
         }
         const { data: dbItems } = await query;
         if (dbItems && Array.isArray(dbItems)) {
@@ -495,12 +510,70 @@ export const App: React.FC = () => {
       }
     }
 
-    // 3. Purge image files from Supabase Storage bucket
+    // 3. Delete listing row from Supabase database FIRST!
+    let supabaseDeleted = false;
+    let deleteError: any = null;
+
+    if (supabase) {
+      try {
+        if (isUUID) {
+          const res = await supabase.from('listings').delete().eq('id', listingId).select();
+          if (res.error) {
+            deleteError = res.error;
+            console.error('[handleDeleteListing] Supabase delete error by ID:', res.error);
+          } else if (res.data && res.data.length > 0) {
+            supabaseDeleted = true;
+            console.log('[handleDeleteListing] Successfully deleted listing row by ID:', res.data);
+          } else {
+            console.warn('[handleDeleteListing] 0 rows deleted by ID for UUID:', listingId);
+          }
+        }
+
+        // Fallback by title if not deleted by UUID or if local ID was used
+        if (!supabaseDeleted && targetListing?.title) {
+          let fallbackQuery = supabase.from('listings').delete().eq('title', targetListing.title);
+          if (user?.id) {
+            fallbackQuery = fallbackQuery.eq('user_id', user.id);
+          }
+          const res = await fallbackQuery.select();
+          if (res.data && res.data.length > 0) {
+            supabaseDeleted = true;
+            console.log('[handleDeleteListing] Deleted listing row via title fallback:', res.data);
+          } else if (res.error && !deleteError) {
+            deleteError = res.error;
+            console.error('[handleDeleteListing] Title fallback delete error:', res.error);
+          }
+        }
+      } catch (err) {
+        deleteError = err;
+        console.error('[handleDeleteListing] Exception deleting listing in Supabase:', err);
+      }
+
+      // Safety check: If this was a remote Supabase item (isUUID) and Supabase failed to delete the row,
+      // halt photo/message purge to avoid leaving orphaned corrupt listings.
+      if (isUUID && !supabaseDeleted) {
+        const errorMsg = deleteError?.message || 'Database permission denied or Row Level Security (RLS) policy restricted deletion.';
+        console.error(`[handleDeleteListing] Aborting cascade delete. Listing row ${listingId} was not removed from Supabase:`, errorMsg);
+        alert(`Could not delete listing from database: ${errorMsg}\n\nPlease apply the updated SQL policy in your Supabase Dashboard SQL Editor.`);
+        return;
+      }
+    }
+
+    // 4. Purge image files from Supabase Storage bucket
     if (imagesToDelete.length > 0) {
       await deleteListingPhotos(imagesToDelete);
     }
 
-    // 4. Update React state & localStorage
+    // 5. Delete all messages for this listing from Supabase database
+    if (supabase) {
+      try {
+        await supabase.from('messages').delete().eq('listing_id', String(listingId));
+      } catch (err) {
+        console.warn('Could not delete messages in Supabase', err);
+      }
+    }
+
+    // 6. Update React state & localStorage
     setRentals(prev => {
       const next = prev.filter(r => r.id !== listingId);
       safeSetLocalStorage('hfx_local_rentals', next);
@@ -511,28 +584,6 @@ export const App: React.FC = () => {
       safeSetLocalStorage('hfx_local_sublets', next);
       return next;
     });
-
-    // 5. Delete listing row from Supabase database
-    if (supabase) {
-      try {
-        if (isUUID) {
-          await supabase.from('listings').delete().eq('id', listingId);
-        } else if (targetListing?.title && user?.id) {
-          await supabase.from('listings').delete().eq('user_id', user.id).eq('title', targetListing.title);
-        }
-      } catch (err) {
-        console.warn('Could not delete in Supabase', err);
-      }
-    }
-
-    // 6. Delete all messages for this listing from Supabase database
-    if (supabase) {
-      try {
-        await supabase.from('messages').delete().eq('listing_id', String(listingId));
-      } catch (err) {
-        console.warn('Could not delete messages in Supabase', err);
-      }
-    }
 
     // 7. Remove local message cache from localStorage
     try {

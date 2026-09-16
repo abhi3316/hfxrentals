@@ -105,20 +105,22 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                 📅 Schedule Viewing
               </button>
 
-              {isOwner && onEditListing && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    style={{ padding: '6px 10px', fontSize: '0.78rem', color: 'var(--amber-400)', borderColor: 'rgba(244, 162, 97, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
-                    onClick={() => {
-                      onClose();
-                      onEditListing(listing);
-                    }}
-                  >
-                    <Edit3 size={13} />
-                    Edit
-                  </button>
+              {isOwner && (onEditListing || onDeleteListing) && (
+                <div style={{ display: 'grid', gridTemplateColumns: onEditListing && onDeleteListing ? '1fr 1fr' : '1fr', gap: 8, marginTop: 8 }}>
+                  {onEditListing && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ padding: '6px 10px', fontSize: '0.78rem', color: 'var(--amber-400)', borderColor: 'rgba(244, 162, 97, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                      onClick={() => {
+                        onClose();
+                        onEditListing(listing);
+                      }}
+                    >
+                      <Edit3 size={13} />
+                      Edit
+                    </button>
+                  )}
 
                   {onDeleteListing && (
                     <button

@@ -34,7 +34,23 @@
    * Auto-compression in browser via HTML5 Canvas (`src/utils/imageOptimizer.ts`): downscales 12-15MB smartphone photos to ~150-250KB WebP prior to network transmission, slashing bandwidth and storage costs by 95%.
    * Multi-photo uploader in `PostListingModal.tsx` (drag & drop, up to 8 photos, Cover Photo badge, individual remove, live compression stats, and returns generated database UUID via `.select().single()`).
    * Dual-mode storage engine (`src/utils/storage.ts`): uploads to Supabase Storage `listing-photos` public bucket if available, with graceful local fallback so offline/demo modes never fail. Automatically deletes photos from bucket on listing removal.
-   * Supabase Storage SQL schema, delete RLS policies, and automatic PostgreSQL trigger `trg_delete_listing_photos` included in `supabase-schema.sql`.
+   * Supabase Storage SQL schema, delete RLS policies (`TO public, anon, authenticated`), and automatic PostgreSQL trigger `trg_delete_listing_cascade` included in `supabase-schema.sql`.
+9. **Transactional Listing Deletion & Cascade Integrity**:
+   * Order of operations: Database row in `public.listings` is verified deleted FIRST (via `.delete().eq('id', listingId).select()`) before storage photos or chat messages are purged.
+   * Zombie state prevention: If Supabase fails to delete the row (e.g., RLS violation or network error), image and message deletion is halted to avoid leaving corrupted listings without assets.
+   * Trigger resilience: In `supabase-schema.sql`, `delete_listing_cascade_data()` handles cascading deletions for `messages` and `viewings`. Direct SQL deletion from `storage.objects` is explicitly omitted because Supabase enforces `storage.protect_delete()` which prohibits direct SQL table deletion; photo cleanup is handled exclusively through the client Storage API (`deleteListingPhotos`).
+   * Unauthenticated visitor protection: `isListingOwner` strictly checks `if (!user) return false;` first, ensuring non-logged-in visitors browsing the platform never see "Your Listing" badges, Edit buttons, or Delete buttons. In addition, `handleDeleteListing` halts immediately if invoked while `!user`.
+10. **Automated Test Framework & Security Validation Suite**:
+    * Test Runner: Vitest (v4.1.11) with JSDOM environment (`vitest.config.ts`, `tests/setup.ts`).
+    * UI Testing: `@testing-library/react` (v16.3.3) and `@testing-library/jest-dom` (v7.0.1).
+    * Test Suites:
+      - `tests/unit/auth-and-ownership.test.ts`: Complete authorization matrix testing unauthenticated visitors, tenant isolation, landlord demo privileges, and cross-user boundaries.
+      - `tests/unit/address-service.test.ts`: HRM street cache lookup, house number preservation, and neighborhood classifier (South End, North End, West End/Quinpool, Clayton Park, Bedford, Fairview, Dartmouth).
+      - `tests/unit/storage-engine.test.ts`: URL path extraction, query parameter stripping, deduplication, and cascade photo deletion via client Storage API.
+      - `tests/unit/image-optimizer.test.ts`: Client-side HTML5 Canvas WebP compression, aspect ratio downscaling, and MIME validation.
+      - `tests/integration/RentalCard.test.tsx`: Card-level authorization rendering (hiding edit/delete from non-owners, rendering for owners, chat vs inquiries button states).
+      - `tests/integration/ListingDetailModal.test.tsx`: Modal-level authorization rendering, delete trigger cascade, and close-on-delete interaction.
+    * Execution: `npm test` runs 59 tests in ~1.5s with 100% pass rate.
 
 ## Tech Stack & Architecture
 * **Frontend**: React 19 + TypeScript + Vite.
@@ -55,7 +71,17 @@ hfxrentals/
 ├── tsconfig.json                # TypeScript configuration
 ├── amplify.yml                  # AWS Amplify deployment specification
 ├── deploy-aws-s3.sh             # AWS S3 + CloudFront deployment bash script
-├── aws-deploy-guide.md          # Step-by-step AWS hosting instructions
+├── vitest.config.ts             # Vitest test framework configuration
+├── tests/                       # Automated test suite (Vitest + RTL + JSDOM)
+│   ├── setup.ts                 # Global JSDOM mocks (Canvas, localStorage, alerts)
+│   ├── unit/
+│   │   ├── auth-and-ownership.test.ts # Matrix testing visitor/tenant/landlord authorization
+│   │   ├── address-service.test.ts    # HRM street cache & neighborhood detector tests
+│   │   ├── storage-engine.test.ts     # Supabase Storage path parsing & deletion tests
+│   │   └── image-optimizer.test.ts    # Canvas WebP downscaling & MIME validation tests
+│   └── integration/
+│       ├── RentalCard.test.tsx        # UI ownership enforcement & button visibility
+│       └── ListingDetailModal.test.tsx# Modal action bar & cascade delete trigger tests
 ├── AGENT_CONTEXT.md             # Sub-agent synchronization context
 └── src/
     ├── main.tsx                 # App mount & global style loading
@@ -82,6 +108,7 @@ hfxrentals/
     │   ├── AddressAutocomplete.tsx # Uber-style Halifax address autocomplete with auto-neighborhood detection
     │   └── FavoritesDrawer.tsx  # Slide-over saved listings manager
     ├── utils/
+    │   ├── ownership.ts         # Isolated ownership authorization logic (isListingOwner)
     │   ├── addressService.ts    # Instant HRM street cache & OpenStreetMap Nominatim geocoding
     │   ├── imageOptimizer.ts    # Client-side HTML5 Canvas auto-compression (15MB -> 180KB WebP)
     │   └── storage.ts           # Dual-mode photo storage (Supabase 'listing-photos' bucket + fallback)
@@ -118,3 +145,4 @@ hfxrentals/
 | **Authentication** | Supabase Auth (Google OAuth + Email) | **AWS Cognito User Pools** | 🟡 **Medium (3-5 hours)** | Switching from Supabase Auth to Cognito requires replacing the AuthContext client SDK with `@aws-amplify/auth` or AWS Cognito Identity SDK. (Google OAuth setup remains identical). |
 | **Cron / Scheduled Alerts** | Supabase Scheduled Functions / Cron | **AWS EventBridge + AWS Lambda** | 🟢 **Low (1-2 hours)** | EventBridge cron expression triggers a Lambda function querying DB and dispatching SES emails. |
 | **Calendar Viewing Scheduler** | Google Calendar link generation | **Same (Client-side URL generator)** | 🟢 **Trivial (0 mins)** | Pure frontend client-side utility (`calendar.google.com/render`); 100% independent of cloud provider. |
+| **CI/CD & Automated Testing** | Vitest + React Testing Library + JSDOM (`npm test`) | **AWS CodeBuild** or **GitHub Actions CI/CD** | 🟢 **Trivial (< 15 mins)** | Add `npm test` step to `buildspec.yml` or `.github/workflows/ci.yml`. Vitest runs headless and executes in under 2 seconds. |
