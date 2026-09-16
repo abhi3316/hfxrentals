@@ -486,6 +486,15 @@ export const App: React.FC = () => {
     setChatListing(listing);
   };
 
+  // Open post listing dialog with authentication guard
+  const handleOpenPostListing = () => {
+    if (!user) {
+      setIsAuthOpen(true);
+      return;
+    }
+    setIsPostListingOpen(true);
+  };
+
   // Open roommate message dialog with authentication guard
   const handleOpenRoommateMessage = (profile: RoommateProfile) => {
     if (!user) {
@@ -661,7 +670,7 @@ export const App: React.FC = () => {
         setActiveTab={setActiveTab}
         favoritesCount={favorites.length}
         onOpenFavorites={() => setIsFavoritesOpen(true)}
-        onOpenPostListing={() => setIsPostListingOpen(true)}
+        onOpenPostListing={handleOpenPostListing}
         onOpenAuth={() => setIsAuthOpen(true)}
         onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
       />
@@ -731,7 +740,7 @@ export const App: React.FC = () => {
                       : 'Try adjusting your maximum budget or toggling off specific filters like heating or winter parking.'}
                   </p>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
-                    <button className="btn btn-primary" onClick={() => setIsPostListingOpen(true)}>
+                    <button className="btn btn-primary" onClick={handleOpenPostListing}>
                       <PlusCircle size={16} />
                       Post a Rental Listing
                     </button>
@@ -793,7 +802,7 @@ export const App: React.FC = () => {
                       : 'No active student sublets match this term or price. Try changing the academic term filter.'}
                   </p>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
-                    <button className="btn btn-primary" onClick={() => setIsPostListingOpen(true)}>
+                    <button className="btn btn-primary" onClick={handleOpenPostListing}>
                       <PlusCircle size={16} />
                       Post a Sublet
                     </button>
@@ -998,6 +1007,10 @@ export const App: React.FC = () => {
         <PostListingModal
           onClose={() => setIsPostListingOpen(false)}
           onListingCreated={handleListingCreated}
+          onOpenAuth={() => {
+            setIsPostListingOpen(false);
+            setIsAuthOpen(true);
+          }}
         />
       )}
 

@@ -5,17 +5,19 @@ import { supabase } from '../lib/supabase';
 import { compressImage, type OptimizedImage } from '../utils/imageOptimizer';
 import { uploadMultipleListingPhotos } from '../utils/storage';
 import { AddressAutocomplete } from './AddressAutocomplete';
-import { X, Check, Sparkles, ArrowRight, ArrowLeft, Camera, UploadCloud, Loader2 } from 'lucide-react';
+import { X, Check, Sparkles, ArrowRight, ArrowLeft, Camera, UploadCloud, Loader2, Lock } from 'lucide-react';
 import '../styles/modal.css';
 
 interface PostListingModalProps {
   onClose: () => void;
   onListingCreated: (newListing: any) => void;
+  onOpenAuth?: () => void;
 }
 
 export const PostListingModal: React.FC<PostListingModalProps> = ({
   onClose,
-  onListingCreated
+  onListingCreated,
+  onOpenAuth
 }) => {
   const { user } = useAuth();
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -72,10 +74,14 @@ export const PostListingModal: React.FC<PostListingModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const currentUserId = user?.id || 'local-landlord';
-    const currentUserName = user?.name || 'You (Landlord)';
-    const currentUserEmail = user?.email || 'landlord@example.com';
-    const currentUserAvatar = user?.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80';
+    if (!user) {
+      if (onOpenAuth) onOpenAuth();
+      return;
+    }
+    const currentUserId = user.id;
+    const currentUserName = user.name;
+    const currentUserEmail = user.email;
+    const currentUserAvatar = user.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80';
 
     setIsUploading(true);
     setUploadStatusText('Uploading optimized property photos...');
@@ -227,6 +233,74 @@ export const PostListingModal: React.FC<PostListingModalProps> = ({
     onListingCreated(createdItem);
     onClose();
   };
+
+  // Defense-in-depth barrier: Require authentication to view post wizard or publish listings
+  if (!user) {
+    return (
+      <div className="modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="post-auth-barrier-title">
+        <div
+          className="modal-content"
+          style={{ maxWidth: 460, textAlign: 'center', padding: '32px 24px', position: 'relative' }}
+          onClick={e => e.stopPropagation()}
+        >
+          <button
+            className="modal-close-btn"
+            onClick={onClose}
+            aria-label="Close modal"
+          >
+            <X size={18} />
+          </button>
+
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              background: 'rgba(0, 168, 150, 0.15)',
+              border: '1px solid rgba(0, 168, 150, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--teal-400)',
+              margin: '0 auto 16px auto'
+            }}
+          >
+            <Lock size={26} />
+          </div>
+
+          <h3 id="post-auth-barrier-title" style={{ fontSize: '1.25rem', color: '#ffffff', marginBottom: 8, fontWeight: 600 }}>
+            Sign In Required to Post
+          </h3>
+
+          <p style={{ fontSize: '0.88rem', color: 'var(--slate-300)', lineHeight: 1.5, marginBottom: 20 }}>
+            You must be signed in to post a rental listing, student sublet, or roommate profile on HfxRentals. This protects our community against scams and fraudulent listings.
+          </p>
+
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onClose}
+              style={{ padding: '8px 18px', fontSize: '0.85rem' }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                onClose();
+                if (onOpenAuth) onOpenAuth();
+              }}
+              style={{ padding: '8px 20px', fontSize: '0.85rem' }}
+            >
+              Sign In to Post
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="modal-backdrop" onClick={onClose}>

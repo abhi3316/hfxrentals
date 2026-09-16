@@ -46,10 +46,14 @@
     * Triggering "Chat", "Inquiries", "Open Live Chat", or roommate "Message" opens the sign-in modal (`setIsAuthOpen(true)`).
     * `ListingDetailModal` displays an inline "Sign In to Message" barrier for unauthenticated visitors.
     * `ChatModal` enforces an internal defense-in-depth lock screen barrier (`Sign In Required to Chat`) blocking message submission and quick prompts if accessed without an active session.
-11. **Automated Test Framework & Security Validation Suite**:
+11. **Post Listing Authentication Guard & Anti-Spam Barrier**:
+    * Unauthenticated visitor protection: Clicking "Post a Listing" in the top navigation bar or empty state action buttons ("Post a Rental Listing", "Post a Sublet") strictly intercepts unauthenticated visitors (`if (!user)`) and triggers the sign-in modal (`setIsAuthOpen(true)`).
+    * Defense-in-depth lock screen: `PostListingModal` enforces an internal lock screen barrier (`Sign In Required to Post`) with Halifax anti-scam messaging and a direct "Sign In to Post" action, ensuring the 3-step listing creation wizard cannot be accessed or submitted without an active session.
+    * Submission authorization: `handleSubmit` in `PostListingModal` verifies active session credentials (`user.id`), terminating execution and prompting sign-in if invoked without an authenticated user.
+12. **Automated Test Framework & Security Validation Suite**:
     * Test Runner: Vitest (v4.1.11) with JSDOM environment (`vitest.config.ts`, `tests/setup.ts`).
     * UI Testing: `@testing-library/react` (v16.3.3) and `@testing-library/jest-dom` (v7.0.1).
-    * Test Suites (9 files, 75 tests passing):
+    * Test Suites (10 files, 81 tests passing):
       - `tests/unit/auth-and-ownership.test.ts`: Complete authorization matrix testing unauthenticated visitors, tenant isolation, landlord demo privileges, and cross-user boundaries.
       - `tests/unit/address-service.test.ts`: HRM street cache lookup, house number preservation, and neighborhood classifier.
       - `tests/unit/storage-engine.test.ts`: URL path extraction, query parameter stripping, deduplication, and cascade photo deletion via client Storage API.
@@ -58,8 +62,9 @@
       - `tests/integration/ListingDetailModal.test.tsx`: Modal-level authorization rendering, delete trigger cascade, and inline inquiry auth barriers.
       - `tests/integration/DeleteConfirmModal.test.tsx`: Confirmation pop-up modal rendering, cancellation, deletion confirmation, and disabled loading state.
       - `tests/integration/ChatAuth.test.tsx`: Lock barrier rendering when unauthenticated, chat access and messaging input when logged in.
+      - `tests/integration/PostListingAuth.test.tsx`: Top navbar interception, empty state triggers, and PostListingModal defense-in-depth barrier.
       - `tests/integration/AppFlow.test.tsx`: End-to-end full application flows testing unauthenticated chat interception and delete confirmation pop-up modal interactions.
-    * Execution: `npm test` runs 75 tests in ~2.0s with 100% pass rate.
+    * Execution: `npm test` runs 81 tests in ~2.8s with 100% pass rate.
 
 ## Tech Stack & Architecture
 * **Frontend**: React 19 + TypeScript + Vite.
@@ -93,6 +98,7 @@ hfxrentals/
 │       ├── ListingDetailModal.test.tsx# Modal action bar & cascade delete trigger tests
 │       ├── DeleteConfirmModal.test.tsx# Deletion confirmation popup modal tests
 │       ├── ChatAuth.test.tsx          # Chat barrier and authentication guard tests
+│       ├── PostListingAuth.test.tsx   # Post listing authentication guard & lock screen tests
 │       └── AppFlow.test.tsx           # Full end-to-end user flow integration tests
 ├── AGENT_CONTEXT.md             # Sub-agent synchronization context
 └── src/
@@ -156,6 +162,7 @@ hfxrentals/
 | **Client-Side Compression & Photo Storage** | Canvas WebP compression + Supabase Storage (`listing-photos`) with auto-purge on deletion | **Amazon S3 + CloudFront (with browser Canvas WebP & S3 DeleteObjects)** | 🟢 **Low (1 hour)** | The client-side Canvas WebP optimizer (`src/utils/imageOptimizer.ts`) is 100% cloud-agnostic. To migrate from Supabase Storage to AWS, replace `uploadListingPhoto` in `src/utils/storage.ts` with an S3 Presigned PUT URL fetch and `deleteListingPhotos` with `s3Client.deleteObjects(...)`. Public assets are served at low latency via Amazon CloudFront CDN. |
 | **Database (PostgreSQL)** | Supabase Managed Postgres | **Amazon RDS for PostgreSQL** or **Aurora Serverless** | 🟢 **Low (1-2 hours)** | 100% SQL compatible. `supabase-schema.sql` imports directly into Amazon RDS with zero syntax modifications. |
 | **Authentication** | Supabase Auth (Google OAuth + Email) | **AWS Cognito User Pools** | 🟡 **Medium (3-5 hours)** | Switching from Supabase Auth to Cognito requires replacing the AuthContext client SDK with `@aws-amplify/auth` or AWS Cognito Identity SDK. (Google OAuth setup remains identical). |
+| **Post Listing Authorization & Ingestion Guard** | React AuthContext + Supabase RLS `auth.uid() = user_id` | **AWS Cognito User Pools + API Gateway / AppSync Auth Directive (`@auth(rules: [{ allow: owner }])`)** | 🟢 **Low (1-2 hours)** | Frontend guard logic is 100% cloud-agnostic. On AWS, the API Gateway Lambda authorizer or AppSync owner directive verifies the Cognito JWT token on listing insertion (`POST /listings` or `createListing` mutation). |
 | **Cron / Scheduled Alerts** | Supabase Scheduled Functions / Cron | **AWS EventBridge + AWS Lambda** | 🟢 **Low (1-2 hours)** | EventBridge cron expression triggers a Lambda function querying DB and dispatching SES emails. |
 | **Calendar Viewing Scheduler** | Google Calendar link generation | **Same (Client-side URL generator)** | 🟢 **Trivial (0 mins)** | Pure frontend client-side utility (`calendar.google.com/render`); 100% independent of cloud provider. |
 | **CI/CD & Automated Testing** | Vitest + React Testing Library + JSDOM (`npm test`) | **AWS CodeBuild** or **GitHub Actions CI/CD** | 🟢 **Trivial (< 15 mins)** | Add `npm test` step to `buildspec.yml` or `.github/workflows/ci.yml`. Vitest runs headless and executes in under 2 seconds. |
