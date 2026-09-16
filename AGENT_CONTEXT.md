@@ -49,7 +49,7 @@
 11. **Automated Test Framework & Security Validation Suite**:
     * Test Runner: Vitest (v4.1.11) with JSDOM environment (`vitest.config.ts`, `tests/setup.ts`).
     * UI Testing: `@testing-library/react` (v16.3.3) and `@testing-library/jest-dom` (v7.0.1).
-    * Test Suites (8 files, 73 tests passing):
+    * Test Suites (9 files, 75 tests passing):
       - `tests/unit/auth-and-ownership.test.ts`: Complete authorization matrix testing unauthenticated visitors, tenant isolation, landlord demo privileges, and cross-user boundaries.
       - `tests/unit/address-service.test.ts`: HRM street cache lookup, house number preservation, and neighborhood classifier.
       - `tests/unit/storage-engine.test.ts`: URL path extraction, query parameter stripping, deduplication, and cascade photo deletion via client Storage API.
@@ -58,7 +58,8 @@
       - `tests/integration/ListingDetailModal.test.tsx`: Modal-level authorization rendering, delete trigger cascade, and inline inquiry auth barriers.
       - `tests/integration/DeleteConfirmModal.test.tsx`: Confirmation pop-up modal rendering, cancellation, deletion confirmation, and disabled loading state.
       - `tests/integration/ChatAuth.test.tsx`: Lock barrier rendering when unauthenticated, chat access and messaging input when logged in.
-    * Execution: `npm test` runs 73 tests in ~2.0s with 100% pass rate.
+      - `tests/integration/AppFlow.test.tsx`: End-to-end full application flows testing unauthenticated chat interception and delete confirmation pop-up modal interactions.
+    * Execution: `npm test` runs 75 tests in ~2.0s with 100% pass rate.
 
 ## Tech Stack & Architecture
 * **Frontend**: React 19 + TypeScript + Vite.
@@ -91,7 +92,8 @@ hfxrentals/
 │       ├── RentalCard.test.tsx        # UI ownership enforcement & button visibility
 │       ├── ListingDetailModal.test.tsx# Modal action bar & cascade delete trigger tests
 │       ├── DeleteConfirmModal.test.tsx# Deletion confirmation popup modal tests
-│       └── ChatAuth.test.tsx          # Chat barrier and authentication guard tests
+│       ├── ChatAuth.test.tsx          # Chat barrier and authentication guard tests
+│       └── AppFlow.test.tsx           # Full end-to-end user flow integration tests
 ├── AGENT_CONTEXT.md             # Sub-agent synchronization context
 └── src/
     ├── main.tsx                 # App mount & global style loading
